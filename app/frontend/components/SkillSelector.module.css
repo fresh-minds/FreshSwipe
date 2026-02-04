@@ -1,0 +1,141 @@
+.container {
+    margin-bottom: 24px;
+}
+
+.header {
+    margin-bottom: 12px;
+}
+
+.header label {
+    display: block;
+    font-weight: 500;
+    color: #111827;
+    margin-bottom: 4px;
+}
+
+.description {
+    font-size: 0.875rem;
+    color: #6B7280;
+}
+
+.chipsContainer {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 12px;
+    background: #F9FAFB;
+    border: 1px solid #E5E7EB;
+    border-radius: 8px;
+    min-height: 48px;
+}
+
+.chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: #E0E7FF;
+    color: #4338CA;
+    padding: 4px 10px;
+    border-radius: 16px;
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
+.removeBtn {
+    border: none;
+    background: transparent;
+    color: #4338CA;
+    cursor: pointer;
+    font-size: 1.1rem;
+    line-height: 1;
+    padding: 0;
+}
+
+.addBtn {
+    background: #fff;
+    border: 1px dashed #9CA3AF;
+    color: #6B7280;
+    padding: 4px 12px;
+    border-radius: 16px;
+    cursor: pointer;
+    font-size: 0.875rem;
+}
+
+.addBtn:hover {
+    border-color: #4338CA;
+    color: #4338CA;
+}
+
+.dropdown {
+    margin-top: 8px;
+    border: 1px solid #E5E7EB;
+    border-radius: 8px;
+    background: #fff;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    padding: 12px;
+    position: absolute;
+    width: 100%;
+    max-width: 600px;
+    z-index: 50;
+}
+
+.searchInput {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid #D1D5DB;
+    border-radius: 6px;
+    margin-bottom: 12px;
+    outline: none;
+}
+
+.searchInput:focus {
+    border-color: #4338CA;
+    box-shadow: 0 0 0 2px rgba(67, 56, 202, 0.2);
+}
+
+.list {
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.categoryGroup h4 {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    color: #9CA3AF;
+    margin: 8px 0 4px;
+    font-weight: 600;
+}
+
+.listItem {
+    padding: 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.listItem:hover {
+    background: #F3F4F6;
+}
+
+.listItem.selected {
+    background: #E0E7FF;
+    color: #4338CA;
+}
+
+.category {
+    font-size: 0.75rem;
+    color: #9CA3AF;
+}
+
+.closeBtn {
+    margin-top: 12px;
+    width: 100%;
+    padding: 8px;
+    background: #4338CA;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+}

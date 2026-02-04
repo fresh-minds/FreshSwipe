@@ -1,0 +1,9 @@
+{
+    "name": "FreshSwipe",
+    "short_name": "FreshSwipe",
+    "description": "Professional skills matching application",
+    "start_url": "/",
+    "display": "standalone",
+    "theme_color": "#6366f1",
+    "background_color": "#0f172a"
+}

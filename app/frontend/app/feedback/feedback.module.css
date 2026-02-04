@@ -1,0 +1,63 @@
+.card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 16px;
+    padding: 1.5rem;
+    box-shadow: 0 10px 20px rgba(15, 23, 42, 0.06);
+}
+
+.form {
+    margin-top: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.9rem;
+}
+
+.label {
+    font-weight: 600;
+    color: #0f172a;
+}
+
+.select,
+.textarea {
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 0.7rem 0.9rem;
+    font-size: 0.95rem;
+}
+
+.ratingRow {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.ratingBtn {
+    border: 1px solid #e2e8f0;
+    background: #f8fafc;
+    padding: 0.4rem 0.7rem;
+    border-radius: 8px;
+    font-size: 0.9rem;
+}
+
+.ratingBtn.active {
+    background: #2563eb;
+    color: #ffffff;
+    border-color: #2563eb;
+}
+
+.error {
+    color: #b91c1c;
+    background: #fee2e2;
+    border: 1px solid #fecaca;
+    padding: 0.6rem 0.8rem;
+    border-radius: 8px;
+}
+
+.success {
+    color: #166534;
+    background: #dcfce7;
+    border: 1px solid #bbf7d0;
+    padding: 0.6rem 0.8rem;
+    border-radius: 8px;
+}

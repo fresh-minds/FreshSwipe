@@ -1,0 +1,32 @@
+.header {
+    margin-bottom: 1.5rem;
+}
+
+.grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 1.5rem;
+}
+
+.chartCard {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 16px;
+    padding: 1.25rem;
+    box-shadow: 0 10px 20px rgba(15, 23, 42, 0.06);
+}
+
+.chart {
+    margin-top: 1rem;
+}
+
+.loading {
+    padding: 2rem 0;
+    text-align: center;
+    color: #64748b;
+}
+
+.adminCta {
+    margin-top: 2rem;
+    text-align: center;
+}

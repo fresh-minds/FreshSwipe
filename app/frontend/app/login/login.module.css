@@ -1,0 +1,139 @@
+.container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    background: var(--bg-secondary);
+    background-image: var(--bg-dots);
+    padding: 20px;
+}
+
+.card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-fm) var(--radius-fm) var(--radius-fm) var(--radius-fm-accent);
+    padding: 48px;
+    max-width: 440px;
+    width: 100%;
+    text-align: center;
+    box-shadow: var(--shadow-xl);
+    animation: fadeIn 0.6s ease-out;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.title {
+    font-size: 2.5rem;
+    font-weight: 700;
+    margin-bottom: 12px;
+    color: var(--text-primary);
+    letter-spacing: -0.02em;
+}
+
+.subtitle {
+    color: var(--text-secondary);
+    font-size: 1.1rem;
+    line-height: 1.6;
+    margin-bottom: 32px;
+}
+
+.loginButton {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    width: 100%;
+    padding: 14px;
+    background-color: #2F2F2F;
+    /* Microsoft standard dark button or could be FM Blue */
+    color: white;
+    border: none;
+    border-radius: var(--radius-fm);
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all var(--transition-normal);
+}
+
+.loginButton:hover {
+    background-color: #000;
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-lg);
+}
+
+.adminButton {
+    background-color: #4a5568 !important;
+    margin-top: 1rem;
+}
+
+.adminButton:hover {
+    background-color: #2d3748 !important;
+}
+
+.divider {
+    display: flex;
+    align-items: center;
+    text-align: center;
+    margin: 20px 0;
+    color: var(--text-muted);
+    font-size: 0.8rem;
+}
+
+.divider::before,
+.divider::after {
+    content: '';
+    flex: 1;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.divider::before {
+    margin-right: .5em;
+}
+
+.divider::after {
+    margin-left: .5em;
+}
+
+.msIcon {
+    width: 20px;
+    height: 20px;
+}
+
+.footer {
+    margin-top: 32px;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+.adminForm {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.input {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-fm);
+    background-color: var(--bg-secondary);
+    color: var(--text-primary);
+    font-size: 0.95rem;
+    outline: none;
+    transition: all 0.2s ease;
+}
+
+.input:focus {
+    border-color: #0078d4;
+    box-shadow: 0 0 0 2px rgba(0, 120, 212, 0.2);
+}

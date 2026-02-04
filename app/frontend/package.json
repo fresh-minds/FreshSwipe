@@ -1,0 +1,29 @@
+{
+    "name": "freshswipe-frontend",
+    "version": "1.0.0",
+    "private": true,
+    "scripts": {
+        "dev": "next dev",
+        "build": "next build",
+        "start": "next start",
+        "lint": "next lint",
+        "test:e2e": "playwright test"
+    },
+    "dependencies": {
+        "framer-motion": "^11.0.3",
+        "next": "16.1.6",
+        "next-auth": "^4.24.5",
+        "react": "18.2.0",
+        "react-dom": "18.2.0",
+        "recharts": "^2.12.0"
+    },
+    "devDependencies": {
+        "@playwright/test": "^1.51.1",
+        "@types/node": "20.11.0",
+        "@types/react": "18.2.48",
+        "@types/react-dom": "18.2.18",
+        "eslint": "^9.0.0",
+        "eslint-config-next": "16.1.6",
+        "typescript": "5.3.3"
+    }
+}

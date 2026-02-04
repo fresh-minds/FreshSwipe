@@ -1,0 +1,35 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: container/Dockerfile
+    image: freshswipe-unified:latest
+    container_name: freshswipe-app
+    ports:
+      - "8081:80"
+    env_file:
+      - .env
+    environment:
+      # Ensure wait-for logic or retry logic handles DB startup time if needed
+      - WEBSITES_PORT=80
+    depends_on:
+      - db
+    restart: unless-stopped
+
+  db:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: freshswipe-sql
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: "${MSSQL_SA_PASSWORD}"
+      MSSQL_PID: "Express"
+    ports:
+      - "1433:1433"
+    volumes:
+      - mssql_data:/var/opt/mssql
+    restart: unless-stopped
+
+volumes:
+  mssql_data:
