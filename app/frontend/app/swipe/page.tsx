@@ -34,43 +34,63 @@ export default function SwipePage() {
     const authToken = (session as any)?.idToken || session?.accessToken;
 
     useEffect(() => {
-        if (status === 'unauthenticated') {
-            router.push('/login');
-            return;
-        }
+        let isMounted = true;
 
-        if (status === 'authenticated') {
-            // Fetch candidates
-            usersApi.getCandidates(authToken)
-                .then(data => {
-                    if (Array.isArray(data)) {
-                        setCandidates(data);
-                    } else {
-                        console.error('Candidates response is not an array:', data);
-                        setCandidates([]);
-                    }
-                    setIsLoading(false);
-                })
-                .catch(err => {
-                    console.error('Failed to load candidates:', err);
-                    setCandidates([]);
-                    setIsLoading(false);
-                });
-
-            // Ensure we have the correct backend user ID
-            const storedId = typeof window !== 'undefined' ? localStorage.getItem('freshswipe_user_id') : null;
-            if (!storedId && session?.user?.email) {
-                usersApi.getByEmail(session.user.email, authToken)
-                    .then((user) => {
-                        if (user && user.id) {
-                            localStorage.setItem('freshswipe_user_id', user.id);
-                            localStorage.setItem('freshswipe_user_name', user.name);
-                            localStorage.setItem('freshswipe_user_email', user.email);
-                        }
-                    })
-                    .catch((err) => console.error('Failed to sync user ID:', err));
+        const initPage = async () => {
+            if (status === 'unauthenticated') {
+                router.push('/login');
+                return;
             }
-        }
+
+            if (status === 'authenticated') {
+                try {
+                    // 1. Get User ID (blocking)
+                    let userId = typeof window !== 'undefined' ? localStorage.getItem('freshswipe_user_id') : null;
+
+                    if (!userId && session?.user?.email) {
+                        try {
+                            const user = await usersApi.getByEmail(session.user.email, authToken);
+                            if (user && user.id) {
+                                userId = user.id;
+                                localStorage.setItem('freshswipe_user_id', user.id);
+                                localStorage.setItem('freshswipe_user_name', user.name);
+                                localStorage.setItem('freshswipe_user_email', user.email);
+                            }
+                        } catch (err) {
+                            console.error('Failed to sync user ID:', err);
+                        }
+                    }
+
+                    // 2. Fetch Candidates (only if we have a user ID or as parallel if independent)
+                    // Currently fetching candidates depends on authToken, but not necessarily userId for the *fetch*, 
+                    // BUT we need userId to record swipes. 
+                    // We'll fetch candidates regardless, but only showing the card stack when ready is safer.
+                    const candidatesData = await usersApi.getCandidates(authToken);
+
+                    if (isMounted) {
+                        if (Array.isArray(candidatesData)) {
+                            // Filter out self if present in candidates
+                            setCandidates(candidatesData.filter(c => c.id !== userId));
+                        } else {
+                            setCandidates([]);
+                        }
+                        setIsLoading(false);
+                    }
+                } catch (err) {
+                    console.error('Failed to initialize swipe page:', err);
+                    if (isMounted) {
+                        setCandidates([]);
+                        setIsLoading(false);
+                    }
+                }
+            }
+        };
+
+        initPage();
+
+        return () => {
+            isMounted = false;
+        };
     }, [status, router, session?.user?.email, authToken]);
 
     const recordSwipe = useCallback(async (direction: SwipeDirection) => {
