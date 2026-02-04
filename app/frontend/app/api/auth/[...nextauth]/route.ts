@@ -58,9 +58,11 @@ const handler = NextAuth({
         async session({ session, token }: any) {
             session.accessToken = token.accessToken;
             session.idToken = token.idToken;
-            // Include user ID from Azure AD OID
+            // Include user ID from Azure AD OID or Subject (for Credentials)
             if (token.oid) {
                 session.user.id = token.oid;
+            } else if (token.sub) {
+                session.user.id = token.sub;
             }
             return session;
         },
