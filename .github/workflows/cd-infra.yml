@@ -1,0 +1,28 @@
+name: CD Infra (Manual Full Deploy)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy-infra:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Azure Login
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+          
+      - name: Deploy Infrastructure and Secrets
+        env:
+          AZURE_ENTRA_AD_CLIENT_SECRET: ${{ secrets.AZURE_ENTRA_AD_CLIENT_SECRET }}
+          DB_ADMIN_PASS: ${{ secrets.DB_ADMIN_PASS }}
+          ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
+          NEXTAUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET }}
+          # Use existing env vars or defaults
+          DB_ENGINE: azure-sql 
+        run: |
+          chmod +x scripts/deploy/deploy_single_container.sh
+          ./scripts/deploy/deploy_single_container.sh
