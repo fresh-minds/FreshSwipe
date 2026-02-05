@@ -8,272 +8,161 @@ A Tinder-style professional skills swipe application for internal enterprise use
 
 ### Prerequisites
 - Docker
-- Node.js 18+ (for local development)
-- Python 3.11+ (for local development)
+- Azure CLI (`az`)
+- Node.js 18+ & Python 3.11+ (for local development)
 
-### Run with Docker (Recommended - Unified Container)
+### 🐳 Run with Docker (Unified Container)
+
+This runs the exact same container image used in production, including Nginx, Frontend, and Backend.
 
 ```bash
-# Build and run the unified container + local Postgres (default)
+# Build and run with local PostgreSQL (default)
 ./container/verify_local.sh
 
-# Or run with local SQL Server
+# Or run with local SQL Server compatibility
 DB_ENGINE=mssql ./container/verify_local.sh
 
-# Access the application
-# App (UI + API): http://localhost:8081
+# Access the application:
+# UI: http://localhost:8081
 # API Docs: http://localhost:8081/docs
 ```
 
-### Run Locally (Development)
+### 💻 Run Locally (Development)
 
-**Backend:**
+**1. Backend (FastAPI)**
 ```bash
 cd app/backend
-
-# Create virtual environment
 python -m venv venv
-source venv/bin/activate  # Windows: venv\Scripts\activate
-
-# Install dependencies
+source venv/bin/activate
 pip install -r requirements.txt
 
-# Set environment variables
+# Set local env vars
 export DATABASE_URL="postgresql+asyncpg://freshswipe:freshswipe@localhost:5432/freshswipe"
-export DB_ENGINE="postgres"
+export ADMIN_EMAILS='["your.email@freshminds.nl"]'
 
-# Run development server
 uvicorn app.main:app --reload --port 8000
 ```
 
-**Frontend:**
+**2. Frontend (Next.js)**
 ```bash
 cd app/frontend
-
-# Install dependencies
 npm install
-
-# Run development server
 npm run dev
+# App runs at http://localhost:3000
 ```
+
+---
 
 ## 🏗️ Architecture
 
+The application is deployed as a **Unified Container** on Azure Web App for Containers.
+
+```mermaid
+graph TD
+    User[User] -->|HTTPS/443| AzureLB[Azure Load Balancer]
+    AzureLB -->|HTTP/80| Container[Unified Container]
+    
+    subgraph Container
+        Nginx[Nginx Reverse Proxy]
+        Frontend[Next.js (Node.js)]
+        Backend[FastAPI (Python)]
+        Supervisor[Supervisor Process Manager]
+        
+        Nginx -->|/| Frontend
+        Nginx -->|/api| Backend
+        Frontend -->|/api (server-side)| Backend
+    end
+    
+    Backend -->|SQL| DB[(Azure SQL / Postgres)]
+    Backend --> KeyVault[Azure Key Vault]
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                        Frontend                              │
-│                    (Next.js 14 + React)                     │
-│   ┌─────────┐  ┌─────────┐  ┌─────────┐  ┌─────────┐       │
-│   │   Home  │  │Onboard  │  │  Swipe  │  │ Insights│       │
-│   └────┬────┘  └────┬────┘  └────┬────┘  └────┬────┘       │
-│        │            │            │            │             │
-│        └────────────┴────────────┴────────────┘             │
-│                          │                                   │
-└──────────────────────────┼───────────────────────────────────┘
-                           │ HTTP
-┌──────────────────────────┼───────────────────────────────────┐
-│                          ▼                                   │
-│                    Backend (FastAPI)                         │
-│   ┌─────────┐  ┌─────────┐  ┌─────────┐  ┌───────────┐     │
-│   │  Users  │  │  Skills │  │  Swipes │  │ Analytics │     │
-│   │   API   │  │   API   │  │   API   │  │    API    │     │
-│   └────┬────┘  └────┬────┘  └────┬────┘  └─────┬─────┘     │
-│        │            │            │              │           │
-│        └────────────┴────────────┴──────────────┘           │
-│                          │                                   │
-└──────────────────────────┼───────────────────────────────────┘
-                           │ SQL
-┌──────────────────────────┼───────────────────────────────────┐
-│                          ▼                                   │
-│                PostgreSQL / Azure SQL                        │
-│   ┌─────────┐  ┌─────────┐  ┌─────────────┐                │
-│   │  users  │  │  skills │  │   swipes    │                │
-│   └─────────┘  └─────────┘  └─────────────┘                │
-│   ┌───────────────────┐                                     │
-│   │    user_skills    │                                     │
-│   └───────────────────┘                                     │
-└─────────────────────────────────────────────────────────────┘
-```
+
+-   **Nginx**: Acts as the internal reverse proxy, routing `/api` to FastAPI and everything else to Next.js.
+-   **Supervisor**: Manages the multiple processes (Nginx, Node, Python) within the single Docker container.
+-   **Key Vault**: Stores sensitivity credentials (`DB_ADMIN_PASS`, `NEXTAUTH_SECRET`, etc.) securely.
+
+---
+
+## 🚀 CI/CD Pipelines
+
+Authentication and infrastructure are separated into two pipelines for safety and speed.
+
+### 1. Code Deployment (Automatic)
+-   **File**: `.github/workflows/cd.yml`
+-   **Trigger**: Push to `main`
+-   **Action**: 
+    1.  Builds new Docker Image.
+    2.  Pushes to Azure Container Registry (ACR).
+    3.  Restarts the Web App to pull the new image.
+-   **Note**: Does **not** modify infrastructure or secrets.
+
+### 2. Infrastructure Deployment (Manual)
+-   **File**: `.github/workflows/cd-infra.yml`
+-   **Trigger**: Manual (`workflow_dispatch`)
+-   **Action**: Runs `scripts/deploy/deploy_single_container.sh`.
+-   **Scope**:
+    -   Provisions/Updates Resource Groups, App Plans, SQL Servers.
+    -   Creates/Updates Azure Key Vault.
+    -   Assigns Managed Identities.
+    -   Updates Secrets and App Settings.
+
+---
+
+## 🛠️ Scripts & Tools
+
+| Script | Purpose |
+|--------|---------|
+| `container/verify_local.sh` | Builds and runs the unified Docker container locally for testing. |
+| `scripts/deploy/ci_deploy_to_acr_from_local.sh` | Runs local tests, builds the image, and pushes to ACR (Manual CI/CD). |
+| `scripts/deploy/deploy_image_update.sh` | **Fast Deploy**: Only updates the container image on Azure. |
+| `scripts/deploy/deploy_single_container.sh` | **Full Deploy**: Provisions all Azure infrastructure and configures secrets. |
+
+---
+
+## 🔐 Security & Authentication
+
+### Authentication
+-   **Provider**: Azure Entra ID (via NextAuth.js).
+-   **Access Control**: Email-based allowlist for Admin features.
+-   **Token Management**: Automatic token refresh and rotation.
+
+### Secrets Management
+-   Sensitive environment variables are stored in **Azure Key Vault**.
+-   The Web App uses a System-Assigned Managed Identity to read these secrets at runtime via Key Vault References (`@Microsoft.KeyVault(...)`).
+
+### Required Environment Variables
+
+| Variable | Description |
+|----------|-------------|
+| `AZURE_ENTRA_TENANT_ID` | Your Microsoft Tenant ID |
+| `AZURE_ENTRA_AD_CLIENT_ID` | App Registration Client ID |
+| `AZURE_ENTRA_AD_CLIENT_SECRET` | App Registration Secret (Stored in KV) |
+| `NEXTAUTH_SECRET` | Random string for session encryption (Stored in KV) |
+| `NEXTAUTH_URL` | Application URL (e.g., `https://app-freshswipe.azurewebsites.net`) |
+| `DATABASE_URL` | Connection string (Stored in KV) |
+| `ADMIN_EMAILS` | JSON array of admin emails `["user@example.com"]` |
+| `ADMIN_PASSWORD` | Fallback admin password (Stored in KV) |
+
+---
 
 ## 📁 Project Structure
 
 ```
 swipefreshminds/
 ├── app/
-│   ├── backend/
-│   │   ├── app/               # FastAPI application
-│   │   ├── seed_data.py       # Demo data seeder
-│   │   └── requirements.txt
-│   └── frontend/
-│       ├── app/               # Next.js app router
-│       ├── lib/               # API client + helpers
-│       └── package.json
-├── container/
-│   ├── Dockerfile             # Unified container build
+│   ├── backend/        # FastAPI Application
+│   └── frontend/       # Next.js Application
+├── container/          # Docker & Nginx Configs
+│   ├── Dockerfile
 │   ├── nginx.conf
-│   ├── supervisord.conf
-│   ├── verify_local.sh
-│   └── deploy_single_container.sh
-├── scripts/
-│   ├── db/
-│   └── tests/
-├── old/
-│   └── multi_container/       # Legacy multi-container setup (archived)
+│   └── supervisord.conf
+├── scripts/            # Deployment & Utility Scripts
+│   └── deploy/
+├── .github/
+│   └── workflows/      # CI/CD Pipelines
 └── README.md
 ```
-
-## 🎨 Features
-
-### User Onboarding
-- Multi-step form collecting name, email, unit
-- Current skills selection
-- Growth areas selection
-- Persistent profile storage
-
-### Swipe Interface
-- Tinder-style card stack with drag gestures
-- **Swipe Right** → Interested in this skill
-- **Swipe Left** → Not relevant for me
-- **Swipe Up** → Super-like (actively working on/strong interest)
-- Visual feedback with color-coded indicators
-- Smooth spring-physics animations via Framer Motion
-
-### User Insights
-- Personal skill interest radar chart
-- Category distribution visualization
-- Top interests ranked with super-likes highlighted
-- Swipe statistics breakdown
-
-### Admin Analytics
-- Organization-wide skill interest metrics
-- User distribution by unit (pie chart)
-- Trending skills (bar chart)
-- Interest rate by category (stacked bar)
-- Filterable by unit
-- Detailed statistics table
-
-## 🛠️ Tech Stack
-
-| Layer | Technology | Purpose |
-|-------|------------|---------|
-| Frontend | Next.js 14 | React framework with App Router |
-| UI Animation | Framer Motion | Gesture-based swipe animations |
-| Charts | Recharts | Data visualization |
-| Backend | FastAPI | High-performance async API |
-| ORM | SQLAlchemy 2.0 | Async database operations |
-| Database | PostgreSQL / Azure SQL | Relational data storage |
-| Containerization | Docker | Consistent deployment |
-
-## 📊 Data Model
-
-### Users
-- `id` (UUID, PK)
-- `name` (string)
-- `email` (string, unique)
-- `unit` (enum: Software, Data, Cloud, Security, Staff)
-- `created_at`, `updated_at` (timestamps)
-
-### Skills
-- `id` (UUID, PK)
-- `name` (string, unique)
-- `category` (string)
-- `description` (text)
-- `icon` (emoji)
-- `display_order` (int)
-- `is_active` (boolean)
-
-### Swipes
-- `id` (UUID, PK)
-- `user_id` (FK → users)
-- `skill_id` (FK → skills)
-- `direction` (enum: left, right, super)
-- `created_at` (timestamp)
-
-### User Skills
-- `id` (UUID, PK)
-- `user_id` (FK → users)
-- `skill_id` (FK → skills)
-- `skill_type` (enum: current, growth)
-
-## 🔌 API Endpoints
-
-### Users
-- `POST /api/v1/users/onboard` - Complete user onboarding
-- `GET /api/v1/users` - List all users
-- `GET /api/v1/users/{id}` - Get user with skills
-- `GET /api/v1/users/by-email/{email}` - Find user by email
-
-### Skills
-- `GET /api/v1/skills` - List all active skills
-- `GET /api/v1/skills/for-user/{userId}` - Get unswiped skills for user
-- `GET /api/v1/skills/categories` - List skill categories
-
-### Swipes
-- `POST /api/v1/swipes` - Record a swipe
-- `GET /api/v1/swipes/user/{userId}` - Get user's swipe history
-- `GET /api/v1/swipes/user/{userId}/interests` - Get user's positive swipes
-
-### Analytics
-- `GET /api/v1/analytics/user/{userId}/summary` - User insights
-- `GET /api/v1/analytics/organization/skills` - Org skill stats
-- `GET /api/v1/analytics/organization/units` - Unit distribution
-- `GET /api/v1/analytics/organization/trends` - Trending skills
-- `GET /api/v1/analytics/organization/category-breakdown` - Category stats
-
-## 🎯 Design Decisions
-
-### Why Tinder-like UX?
-- Familiar, intuitive interaction pattern
-- Low cognitive load per decision
-- Gamification increases engagement
-- Mobile-first responsive design
-
-### Why FastAPI?
-- Async support for database operations
-- Automatic OpenAPI documentation
-- Type hints with Pydantic validation
-- High performance
-
-### Why Next.js 14?
-- App Router for modern React patterns
-- CSS Modules for scoped styling
-- Built-in optimization
-- Server-side rendering ready
-
-### Why PostgreSQL?
-- Robust for analytics queries
-- Excellent UUID support
-- Scalable for production
-- ACID compliance
-
-## 📝 Seed Data
-
-The application comes pre-seeded with:
-- **18 skills** across 5 categories (Cloud, Data, Security, Software, AI)
-- **10 demo users** with sample profiles
-- **Sample swipe history** for analytics demonstration
-
-## 🔒 Security Notes
-
-This is an internal MVP without authentication. For production:
-- Add SSO/OAuth integration
-- Implement role-based access control
-- Add rate limiting
-- Enable HTTPS
-
-## 📈 Future Enhancements
-
-- [ ] AI-powered skill recommendations
-- [ ] Team matching based on skill synergies
-- [ ] Learning path suggestions
-- [ ] Slack/Teams integration
-- [ ] Export reports to PDF
-- [ ] Custom skill submission
 
 ## 📄 License
 
 Internal use only. Not for distribution.
-
----
-
-Built with ❤️ for professional development and skill discovery.
