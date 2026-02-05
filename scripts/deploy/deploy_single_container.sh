@@ -99,15 +99,22 @@ fi
 
 if [ "$DB_ENGINE" = "azure-sql" ] || [ "$DB_ENGINE" = "mssql" ]; then
     DB_SERVER_NAME="sql-${APP_NAME_PREFIX}2"
-    echo "Ensuring Microsoft.Sql resource provider is registered..."
-    az provider register --namespace Microsoft.Sql > /dev/null
-    for i in {1..20}; do
-        STATE=$(az provider show --namespace Microsoft.Sql --query "registrationState" -o tsv)
-        if [ "$STATE" = "Registered" ]; then
-            break
-        fi
-        sleep 5
-    done
+    echo "Checking if Microsoft.Sql resource provider is registered..."
+    PROVIDER_STATE=$(az provider show --namespace Microsoft.Sql --query "registrationState" -o tsv)
+    if [ "$PROVIDER_STATE" != "Registered" ]; then
+        echo "Provider not registered. Registering now..."
+        az provider register --namespace Microsoft.Sql > /dev/null
+        # Wait for registration to complete
+        for i in {1..20}; do
+            STATE=$(az provider show --namespace Microsoft.Sql --query "registrationState" -o tsv)
+            if [ "$STATE" = "Registered" ]; then
+                break
+            fi
+            sleep 5
+        done
+    else
+        echo "Microsoft.Sql is already registered."
+    fi
     if az sql server show --resource-group "$RESOURCE_GROUP" --name "$DB_SERVER_NAME" > /dev/null 2>&1; then
         echo "SQL Server '$DB_SERVER_NAME' exists."
     else
