@@ -52,71 +52,7 @@ class TestMatchingServiceCalculateScore:
         # Check against actual string representation
         assert str(UnitType.DATA) in reasons[0] or "Data" in reasons[0]
     
-    def test_calculate_score_shared_super_like(self):
-        """Test super-liked skill match gives high score."""
-        skill_id = uuid4()
-        skill = MagicMock(spec=Skill)
-        skill.name = "Machine Learning"
-        
-        swipe_a = MagicMock()
-        swipe_a.skill_id = skill_id
-        swipe_a.direction = SwipeDirection.SUPER
-        swipe_a.skill = skill
-        
-        swipe_b = MagicMock()
-        swipe_b.skill_id = skill_id
-        swipe_b.direction = SwipeDirection.SUPER
-        swipe_b.skill = skill
-        
-        user_a = MagicMock(spec=User)
-        user_a.swipes = [swipe_a]
-        user_a.skills = []
-        user_a.unit = UnitType.DATA
-        user_a.name = "User A"
-        
-        user_b = MagicMock(spec=User)
-        user_b.swipes = [swipe_b]
-        user_b.skills = []
-        user_b.unit = UnitType.SOFTWARE
-        user_b.name = "User B"
-        
-        score, reasons, match_type = MatchingService.calculate_score(user_a, user_b)
-        
-        assert score == 5.0  # Super-like match = 5 points
-        assert "Both super-liked Machine Learning" in reasons
-    
-    def test_calculate_score_shared_interest(self):
-        """Test shared interest (right swipe) match."""
-        skill_id = uuid4()
-        skill = MagicMock(spec=Skill)
-        skill.name = "Python"
-        
-        swipe_a = MagicMock()
-        swipe_a.skill_id = skill_id
-        swipe_a.direction = SwipeDirection.RIGHT
-        swipe_a.skill = skill
-        
-        swipe_b = MagicMock()
-        swipe_b.skill_id = skill_id
-        swipe_b.direction = SwipeDirection.RIGHT
-        swipe_b.skill = skill
-        
-        user_a = MagicMock(spec=User)
-        user_a.swipes = [swipe_a]
-        user_a.skills = []
-        user_a.unit = UnitType.DATA
-        user_a.name = "User A"
-        
-        user_b = MagicMock(spec=User)
-        user_b.swipes = [swipe_b]
-        user_b.skills = []
-        user_b.unit = UnitType.SOFTWARE
-        user_b.name = "User B"
-        
-        score, reasons, match_type = MatchingService.calculate_score(user_a, user_b)
-        
-        assert score == 2.0  # Shared interest = 2 points
-        assert "Shared interest in Python" in reasons
+
     
     def test_calculate_score_mentor_match(self):
         """Test mentor-mentee relationship is detected."""

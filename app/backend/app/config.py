@@ -18,13 +18,13 @@ class Settings(BaseSettings):
     cors_origins: list[str] = ["http://localhost:8081", "http://localhost:3000"]
     
     # Entra ID
-    entra_client_id: str = Field(
+    AZURE_ENTRA_AD_CLIENT_ID: str = Field(
         "",
-        validation_alias=AliasChoices("ENTRA_CLIENT_ID", "AZURE_AD_CLIENT_ID"),
+        validation_alias=AliasChoices("AZURE_ENTRA_AD_CLIENT_ID", "AZURE_ENTRA_AD_CLIENT_ID"),
     )
-    entra_tenant_id: str = Field(
+    AZURE_ENTRA_TENANT_ID: str = Field(
         "common",
-        validation_alias=AliasChoices("ENTRA_TENANT_ID", "AZURE_AD_TENANT_ID"),
+        validation_alias=AliasChoices("AZURE_ENTRA_TENANT_ID", "AZURE_AD_TENANT_ID"),
     )
     entra_authority: str = "https://login.microsoftonline.com"
     

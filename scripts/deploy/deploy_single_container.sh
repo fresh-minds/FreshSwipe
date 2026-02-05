@@ -16,17 +16,27 @@ DB_NAME="freshswipe2"
 DB_ADMIN_USER="dbadmin2"
 DB_ADMIN_PASS="${DB_ADMIN_PASS:-}"
 
+# Load .env file if it exists
+if [ -f .env ]; then
+    echo "Loading environment variables from .env..."
+    set -a
+    source .env
+    set +a
+fi
+
 # Secrets (Env vars or prompt)
-AZURE_AD_CLIENT_ID="${AZURE_AD_CLIENT_ID:-67f7d9af-a5dd-4f03-8c45-18aaaebe1d06}"
-if [ -z "$AZURE_AD_CLIENT_SECRET" ]; then
+AZURE_ENTRA_AD_CLIENT_ID="${AZURE_ENTRA_AD_CLIENT_ID:-67f7d9af-a5dd-4f03-8c45-18aaaebe1d06}"
+if [ -z "$AZURE_ENTRA_AD_CLIENT_SECRET" ]; then
     if [ "$CI" = "true" ]; then
-        echo "Error: AZURE_AD_CLIENT_SECRET is missing in CI environment."
+        echo "Error: AZURE_ENTRA_AD_CLIENT_SECRET is missing in CI environment."
         exit 1
     fi
-    read -s -p "Enter Azure AD Client Secret: " AZURE_AD_CLIENT_SECRET
+    read -s -p "Enter Azure AD Client Secret: " AZURE_ENTRA_AD_CLIENT_SECRET
     echo ""
 fi
-AZURE_AD_TENANT_ID="${AZURE_AD_TENANT_ID:-fedcef2f-0c85-40dd-8f55-e23143dcb367}"
+
+# Prioritize AZURE_ENTRA_TENANT_ID, fall back to AZURE_AD_TENANT_ID, then default
+AZURE_ENTRA_TENANT_ID="${AZURE_ENTRA_TENANT_ID:-${AZURE_AD_TENANT_ID:-fedcef2f-0c85-40dd-8f55-e23143dcb367}}"
 NEXTAUTH_SECRET="${NEXTAUTH_SECRET:-}"
 ADMIN_EMAIL="${ADMIN_EMAIL:-karel.goense@freshminds.nl}"
 
@@ -255,13 +265,12 @@ SETTINGS=(
     "DB_ODBC_TIMEOUT=30"
     "DB_ENGINE=$DB_ENGINE"
     "DEBUG=false"
-    "ENTRA_CLIENT_ID=$AZURE_AD_CLIENT_ID"
-    "ENTRA_TENANT_ID=$AZURE_AD_TENANT_ID"
-    "AZURE_AD_CLIENT_ID=$AZURE_AD_CLIENT_ID"
-    "AZURE_AD_CLIENT_SECRET=$AZURE_AD_CLIENT_SECRET"
-    "AZURE_AD_TENANT_ID=$AZURE_AD_TENANT_ID"
-    "AZURE_AD_TENANT_ID=$AZURE_AD_TENANT_ID"
+    "AZURE_ENTRA_AD_CLIENT_ID=$AZURE_ENTRA_AD_CLIENT_ID"
+    "AZURE_ENTRA_TENANT_ID=$AZURE_ENTRA_TENANT_ID"
+    "AZURE_AD_TENANT_ID=$AZURE_ENTRA_TENANT_ID"
+    "AZURE_ENTRA_AD_CLIENT_SECRET=$AZURE_ENTRA_AD_CLIENT_SECRET"
     "ADMIN_EMAIL=$ADMIN_EMAIL"
+    "ADMIN_EMAILS=${ADMIN_EMAILS:-[\"admin@freshminds.nl\", \"karel.goense@freshminds.nl\"]}"
     "ADMIN_PASSWORD=${ADMIN_PASSWORD:?ADMIN_PASSWORD env var is required}"
     "NEXT_PUBLIC_API_URL=https://$WEB_APP_NAME.azurewebsites.net"
     "NEXTAUTH_URL=https://$WEB_APP_NAME.azurewebsites.net"

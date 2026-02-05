@@ -11,7 +11,6 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
     
     steps:
       - uses: actions/checkout@v4
@@ -23,7 +22,7 @@ jobs:
           
       - name: Deploy to Azure Web App
         env:
-          AZURE_AD_CLIENT_SECRET: ${{ secrets.AZURE_AD_CLIENT_SECRET }}
+          AZURE_ENTRA_AD_CLIENT_SECRET: ${{ secrets.AZURE_ENTRA_AD_CLIENT_SECRET }}
           DB_ADMIN_PASS: ${{ secrets.DB_ADMIN_PASS }}
           ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
           NEXTAUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET }}

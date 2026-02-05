@@ -1,6 +1,6 @@
 'use client';
 
-import { useSession } from 'next-auth/react';
+import { useSession, signIn } from 'next-auth/react';
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, useMotionValue, useTransform, AnimatePresence } from 'framer-motion';
@@ -37,8 +37,9 @@ export default function SwipePage() {
         let isMounted = true;
 
         const initPage = async () => {
-            if (status === 'unauthenticated') {
-                router.push('/login');
+            if (status === 'unauthenticated' || (session as any)?.error === "RefreshAccessTokenError") {
+                // If unauthenticated or token refresh failed, force sign in
+                signIn("azure-ad");
                 return;
             }
 
@@ -55,9 +56,17 @@ export default function SwipePage() {
                                 localStorage.setItem('freshswipe_user_id', user.id);
                                 localStorage.setItem('freshswipe_user_name', user.name);
                                 localStorage.setItem('freshswipe_user_email', user.email);
+                            } else {
+                                // User logged in but not in DB -> Redirect to onboarding
+                                console.log("User not found in DB, redirecting to onboarding");
+                                router.push('/onboarding');
+                                return;
                             }
                         } catch (err) {
                             console.error('Failed to sync user ID:', err);
+                            // If 404 or similar, likely needs onboarding
+                            router.push('/onboarding');
+                            return;
                         }
                     }
 
@@ -221,9 +230,11 @@ export default function SwipePage() {
                     </motion.div>
                 ) : (
                     <>
-                        <div className={styles.counter}>
-                            {currentIndex + 1} / {candidates.length}
-                        </div>
+                        {currentCandidate && (
+                            <div className={styles.counter}>
+                                {currentIndex + 1} / {candidates.length}
+                            </div>
+                        )}
 
                         <div className={styles.cardContainer}>
                             {/* Background cards */}
@@ -290,32 +301,48 @@ export default function SwipePage() {
                         </div>
 
                         {/* Action buttons */}
-                        <div className={styles.actions}>
-                            <button
-                                className={`btn btn-icon btn-danger ${styles.actionBtn}`}
-                                onClick={() => handleButtonSwipe('left')}
-                                title="Pass"
-                            >
-                                ✕
-                            </button>
-                            <button
-                                className={`btn btn-icon btn-super ${styles.actionBtn} ${styles.superBtn}`}
-                                onClick={() => handleButtonSwipe('super')}
-                                title="Super Like"
-                            >
-                                ⭐
-                            </button>
-                            <button
-                                className={`btn btn-icon btn-success ${styles.actionBtn}`}
-                                onClick={() => handleButtonSwipe('right')}
-                                title="Connect"
-                            >
-                                ✓
-                            </button>
-                        </div>
+                        {/* Action buttons - only show if there is a candidate */}
+                        {currentCandidate && (
+                            <div className={styles.actions}>
+                                <button
+                                    className={`btn btn-icon btn-danger ${styles.actionBtn}`}
+                                    onClick={() => handleButtonSwipe('left')}
+                                    title="Pass"
+                                >
+                                    ✕
+                                </button>
+                                <button
+                                    className={`btn btn-icon btn-super ${styles.actionBtn} ${styles.superBtn}`}
+                                    onClick={() => handleButtonSwipe('super')}
+                                    title="Super Like"
+                                >
+                                    ⭐
+                                </button>
+                                <button
+                                    className={`btn btn-icon btn-success ${styles.actionBtn}`}
+                                    onClick={() => handleButtonSwipe('right')}
+                                    title="Connect"
+                                >
+                                    ✓
+                                </button>
+                            </div>
+                        )}
 
                         <div className={styles.hint}>
-                            <p>Drag card or use buttons • Up = Super Like</p>
+                            {currentCandidate ? (
+                                <p>Drag card or use buttons • Up = Super Like</p>
+                            ) : (
+                                <div style={{ textAlign: 'center', marginTop: '2rem' }}>
+                                    <h3>No more profiles</h3>
+                                    <p>Check back later for new colleagues!</p>
+                                    <button
+                                        onClick={() => window.location.reload()}
+                                        className="btn btn-secondary mt-md"
+                                    >
+                                        Refresh
+                                    </button>
+                                </div>
+                            )}
                         </div>
                     </>
                 )}

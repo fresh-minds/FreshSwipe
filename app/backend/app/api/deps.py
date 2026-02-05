@@ -17,7 +17,7 @@ settings = get_settings()
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token", auto_error=False)
 
 # Microsoft OpenID configuration - cached JWKS
-DISCOVERY_URL = f"https://login.microsoftonline.com/{settings.entra_tenant_id}/v2.0/.well-known/openid-configuration"
+DISCOVERY_URL = f"https://login.microsoftonline.com/{settings.AZURE_ENTRA_TENANT_ID}/v2.0/.well-known/openid-configuration"
 
 # Simple in-memory cache for JWKS with TTL
 _jwks_cache: dict = {
@@ -142,8 +142,8 @@ async def get_current_user(
             token,
             public_key,
             algorithms=["RS256"],
-            audience=settings.entra_client_id,
-            issuer=f"https://login.microsoftonline.com/{settings.entra_tenant_id}/v2.0",
+            audience=settings.AZURE_ENTRA_AD_CLIENT_ID,
+            issuer=f"https://login.microsoftonline.com/{settings.AZURE_ENTRA_TENANT_ID}/v2.0",
         )
         
         oid = payload.get("oid")
@@ -181,11 +181,19 @@ async def get_current_user(
 def is_admin_user(user: User) -> bool:
     if user.entra_oid and user.entra_oid in settings.admin_entra_ids:
         return True
-    if user.email and user.email in settings.admin_emails:
+    
+    user_email = (user.email or "").lower()
+    
+    # Check list of admins (normalized)
+    if user_email and user_email in [e.lower() for e in settings.admin_emails]:
         return True
-    if user.email and settings.admin_email and user.email == settings.admin_email:
+        
+    # Check single admin (normalized)
+    if user_email and settings.admin_email and user_email == settings.admin_email.lower():
         return True
+        
     debug_user_id = os.getenv("DEBUG_USER_ID")
     if debug_user_id and str(user.id) == debug_user_id:
         return True
+        
     return False
