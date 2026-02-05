@@ -277,6 +277,10 @@ else
     echo "Warning: Key Vault creation might have failed or it already exists. Proceeding..."
 fi
 
+# Determine whether the vault uses RBAC or access policies.
+KV_USE_RBAC=$(az keyvault show --name "$KV_NAME" --resource-group "$RESOURCE_GROUP" --query "properties.enableRbacAuthorization" -o tsv 2>/dev/null || echo "false")
+KV_SCOPE=$(az keyvault show --name "$KV_NAME" --resource-group "$RESOURCE_GROUP" --query "id" -o tsv 2>/dev/null || true)
+
 # 8b. Managed Identity for Web App
 echo "Enabling System-Assigned Managed Identity for Web App..."
 IDENTITY_OUTPUT=$(az webapp identity assign --resource-group "$RESOURCE_GROUP" --name "$WEB_APP_NAME")
@@ -284,12 +288,20 @@ APP_IDENTITY_ID=$(echo "$IDENTITY_OUTPUT" | grep -o '"principalId": "[^"]*' | cu
 
 # 8c. Access Policy
 echo "Granting Web App ($APP_IDENTITY_ID) access to Key Vault secrets..."
-az keyvault set-policy --name "$KV_NAME" --object-id "$APP_IDENTITY_ID" --secret-permissions get list > /dev/null
+if [ "$KV_USE_RBAC" = "true" ]; then
+    az role assignment create --assignee-object-id "$APP_IDENTITY_ID" --assignee-principal-type ServicePrincipal --role "Key Vault Secrets User" --scope "$KV_SCOPE" > /dev/null 2>&1 || true
+else
+    az keyvault set-policy --name "$KV_NAME" --object-id "$APP_IDENTITY_ID" --secret-permissions get list > /dev/null
+fi
 
 # Also ensure current user has access to set secrets
 CURRENT_USER_ID=$(az ad signed-in-user show --query id -o tsv 2>/dev/null || true)
 if [ -n "$CURRENT_USER_ID" ]; then
-     az keyvault set-policy --name "$KV_NAME" --object-id "$CURRENT_USER_ID" --secret-permissions set get list delete > /dev/null
+     if [ "$KV_USE_RBAC" = "true" ]; then
+         az role assignment create --assignee-object-id "$CURRENT_USER_ID" --assignee-principal-type User --role "Key Vault Secrets Officer" --scope "$KV_SCOPE" > /dev/null 2>&1 || true
+     else
+         az keyvault set-policy --name "$KV_NAME" --object-id "$CURRENT_USER_ID" --secret-permissions set get list delete > /dev/null
+     fi
 fi
 
 # 8d. Store Secrets in Key Vault
