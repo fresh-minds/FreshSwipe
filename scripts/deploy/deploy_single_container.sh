@@ -273,8 +273,9 @@ if az keyvault create --name "$KV_NAME" --resource-group "$RESOURCE_GROUP" --loc
     echo "Key Vault created/updated (Access Policies Enabled)."
 else
     # If creation failed, it might exist but we might not have access, or name conflict.
-    # Try to proceed, assuming it exists.
-    echo "Warning: Key Vault creation might have failed or it already exists. Proceeding..."
+    # Try to force update properties just in case
+    echo "Ensuring Access Policies are enabled (Disabling RBAC)..."
+    az keyvault update --name "$KV_NAME" --resource-group "$RESOURCE_GROUP" --enable-rbac-authorization false > /dev/null 2>&1 || true
 fi
 
 # Determine whether the vault uses RBAC or access policies.
@@ -295,13 +296,27 @@ else
 fi
 
 # Also ensure current user has access to set secrets
+# Also ensure current user has access to set secrets
+# Method 1: Try signed-in-user (often fails with Conditional Access)
 CURRENT_USER_ID=$(az ad signed-in-user show --query id -o tsv 2>/dev/null || true)
+
+# Method 2: Extract OID from Access Token (Robust fallback)
+if [ -z "$CURRENT_USER_ID" ]; then
+    echo "Getting User ID from Access Token (Fallback)..."
+    CURRENT_USER_ID=$(az account get-access-token --query accessToken -o tsv | cut -d . -f 2 | tr -d '\n' | base64 -d 2>/dev/null | grep -o '"oid":"[^"]*' | cut -d'"' -f4)
+fi
+
 if [ -n "$CURRENT_USER_ID" ]; then
-     if [ "$KV_USE_RBAC" = "true" ]; then
-         az role assignment create --assignee-object-id "$CURRENT_USER_ID" --assignee-principal-type User --role "Key Vault Secrets Officer" --scope "$KV_SCOPE" > /dev/null 2>&1 || true
-     else
-         az keyvault set-policy --name "$KV_NAME" --object-id "$CURRENT_USER_ID" --secret-permissions set get list delete > /dev/null
-     fi
+      echo "Granting Current User ($CURRENT_USER_ID) access to Key Vault secrets..."
+      if [ "$KV_USE_RBAC" = "true" ]; then
+          az role assignment create --assignee-object-id "$CURRENT_USER_ID" --assignee-principal-type User --role "Key Vault Secrets Officer" --scope "$KV_SCOPE" > /dev/null 2>&1 || true
+      else
+          az keyvault set-policy --name "$KV_NAME" --object-id "$CURRENT_USER_ID" --secret-permissions set get list delete > /dev/null
+          # Wait 5s for propagation
+          sleep 5
+      fi
+else
+      echo "Warning: Could not determine Current User ID. Skipping user access policy."
 fi
 
 # 8d. Store Secrets in Key Vault
