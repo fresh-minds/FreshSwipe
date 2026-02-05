@@ -258,14 +258,56 @@ az webapp update --resource-group "$RESOURCE_GROUP" --name "$WEB_APP_NAME" --htt
 az webapp update --resource-group "$RESOURCE_GROUP" --name "$WEB_APP_NAME" --set clientAffinityEnabled=false > /dev/null
 az webapp config set --resource-group "$RESOURCE_GROUP" --name "$WEB_APP_NAME" --min-tls-version 1.2 --ftps-state Disabled > /dev/null
 
-# 8. Configure App Settings
-echo "Configuring App Settings..."
+# 8. Configure Secrets in Key Vault and App Settings
+echo "Configuring Secrets Management..."
+
 # Generate NextAuth Secret if needed
 if [ -z "$NEXTAUTH_SECRET" ]; then
    NEXTAUTH_SECRET=$(python3 -c 'import secrets; print(secrets.token_urlsafe(32))')
 fi
 
-# Note: WEBSITES_PORT=80 is critical for custom container listening on 80
+# 8a. Setup Key Vault
+KV_NAME="kv$(echo ${APP_NAME_PREFIX}2 | tr -d '-')" # Globally unique name
+echo "Ensuring Key Vault '$KV_NAME' exists..."
+if az keyvault create --name "$KV_NAME" --resource-group "$RESOURCE_GROUP" --location "$LOCATION" --enable-rbac-authorization false > /dev/null 2>&1; then
+    echo "Key Vault created/updated (Access Policies Enabled)."
+else
+    # If creation failed, it might exist but we might not have access, or name conflict.
+    # Try to proceed, assuming it exists.
+    echo "Warning: Key Vault creation might have failed or it already exists. Proceeding..."
+fi
+
+# 8b. Managed Identity for Web App
+echo "Enabling System-Assigned Managed Identity for Web App..."
+IDENTITY_OUTPUT=$(az webapp identity assign --resource-group "$RESOURCE_GROUP" --name "$WEB_APP_NAME")
+APP_IDENTITY_ID=$(echo "$IDENTITY_OUTPUT" | grep -o '"principalId": "[^"]*' | cut -d'"' -f4)
+
+# 8c. Access Policy
+echo "Granting Web App ($APP_IDENTITY_ID) access to Key Vault secrets..."
+az keyvault set-policy --name "$KV_NAME" --object-id "$APP_IDENTITY_ID" --secret-permissions get list > /dev/null
+
+# Also ensure current user has access to set secrets
+CURRENT_USER_ID=$(az ad signed-in-user show --query id -o tsv 2>/dev/null || true)
+if [ -n "$CURRENT_USER_ID" ]; then
+     az keyvault set-policy --name "$KV_NAME" --object-id "$CURRENT_USER_ID" --secret-permissions set get list delete > /dev/null
+fi
+
+# 8d. Store Secrets in Key Vault
+echo "Storing secrets in Key Vault..."
+az keyvault secret set --vault-name "$KV_NAME" --name "AZURE-ENTRA-AD-CLIENT-SECRET" --value "$AZURE_ENTRA_AD_CLIENT_SECRET" > /dev/null
+if [ -n "$DB_ADMIN_PASS" ]; then
+    az keyvault secret set --vault-name "$KV_NAME" --name "DB-ADMIN-PASS" --value "$DB_ADMIN_PASS" > /dev/null
+fi
+az keyvault secret set --vault-name "$KV_NAME" --name "ADMIN-PASSWORD" --value "$ADMIN_PASSWORD" > /dev/null
+az keyvault secret set --vault-name "$KV_NAME" --name "NEXTAUTH-SECRET" --value "$NEXTAUTH_SECRET" > /dev/null
+if [ -n "$DATABASE_URL" ]; then
+    az keyvault secret set --vault-name "$KV_NAME" --name "DATABASE-URL" --value "$DATABASE_URL" > /dev/null
+fi
+
+
+# 8e. Configure App Settings (Referencing Key Vault)
+echo "Configuring App Settings with Key Vault References..."
+
 SETTINGS=(
     "WEBSITES_PORT=80"
     "DB_SSL=require"
@@ -275,18 +317,21 @@ SETTINGS=(
     "AZURE_ENTRA_AD_CLIENT_ID=$AZURE_ENTRA_AD_CLIENT_ID"
     "AZURE_ENTRA_TENANT_ID=$AZURE_ENTRA_TENANT_ID"
     "AZURE_AD_TENANT_ID=$AZURE_ENTRA_TENANT_ID"
-    "AZURE_ENTRA_AD_CLIENT_SECRET=$AZURE_ENTRA_AD_CLIENT_SECRET"
     "ADMIN_EMAIL=$ADMIN_EMAIL"
     "ADMIN_EMAILS=${ADMIN_EMAILS:-[\"admin@freshminds.nl\", \"karel.goense@freshminds.nl\"]}"
-    "ADMIN_PASSWORD=${ADMIN_PASSWORD:?ADMIN_PASSWORD env var is required}"
     "NEXT_PUBLIC_API_URL=https://$WEB_APP_NAME.azurewebsites.net"
     "NEXTAUTH_URL=https://$WEB_APP_NAME.azurewebsites.net"
-    "NEXTAUTH_SECRET=$NEXTAUTH_SECRET"
     "NODE_ENV=production"
+    
+    # Key Vault References: @Microsoft.KeyVault(SecretUri=...)
+    "AZURE_ENTRA_AD_CLIENT_SECRET=@Microsoft.KeyVault(SecretUri=https://$KV_NAME.vault.azure.net/secrets/AZURE-ENTRA-AD-CLIENT-SECRET)"
+    "DB_ADMIN_PASS=@Microsoft.KeyVault(SecretUri=https://$KV_NAME.vault.azure.net/secrets/DB-ADMIN-PASS)"
+    "ADMIN_PASSWORD=@Microsoft.KeyVault(SecretUri=https://$KV_NAME.vault.azure.net/secrets/ADMIN-PASSWORD)"
+    "NEXTAUTH_SECRET=@Microsoft.KeyVault(SecretUri=https://$KV_NAME.vault.azure.net/secrets/NEXTAUTH-SECRET)"
 )
 
 if [ -n "$DATABASE_URL" ]; then
-    SETTINGS+=("DATABASE_URL=$DATABASE_URL")
+    SETTINGS+=("DATABASE_URL=@Microsoft.KeyVault(SecretUri=https://$KV_NAME.vault.azure.net/secrets/DATABASE-URL)")
 fi
 
 az webapp config appsettings set --resource-group "$RESOURCE_GROUP" --name "$WEB_APP_NAME" --settings "${SETTINGS[@]}" > /dev/null
