@@ -17,14 +17,7 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
           
-      - name: Deploy to Azure Web App
-        env:
-          AZURE_ENTRA_AD_CLIENT_SECRET: ${{ secrets.AZURE_ENTRA_AD_CLIENT_SECRET }}
-          DB_ADMIN_PASS: ${{ secrets.DB_ADMIN_PASS }}
-          ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
-          NEXTAUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET }}
-          # Use existing env vars or defaults
-          DB_ENGINE: azure-sql 
+      - name: Deploy Code Update (Image Build & Push)
         run: |
-          chmod +x scripts/deploy/deploy_single_container.sh
-          ./scripts/deploy/deploy_single_container.sh
+          chmod +x scripts/deploy/deploy_image_update.sh
+          ./scripts/deploy/deploy_image_update.sh
