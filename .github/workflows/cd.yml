@@ -1,8 +1,11 @@
 name: CD (Deploy to Azure)
 
 on:
-  push:
-    branches: [ main ]
+  workflow_run:
+    workflows: ["CI (Unified Container)"]
+    branches: [main]
+    types: 
+      - completed
   workflow_dispatch:
 
 jobs:
