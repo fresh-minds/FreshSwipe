@@ -58,9 +58,10 @@ docker run -d --name local-unified-test \
   -e NEXTAUTH_SECRET="local-test-secret" \
   -e NEXTAUTH_URL="http://localhost:8081" \
   -e NEXT_PUBLIC_API_URL="http://localhost:8081" \
-  -e AZURE_AD_CLIENT_ID="${AZURE_AD_CLIENT_ID:-your-id}" \
+  -e AZURE_ENTRA_AD_CLIENT_ID="${AZURE_ENTRA_AD_CLIENT_ID:-your-id}" \
   -e AZURE_AD_TENANT_ID="${AZURE_AD_TENANT_ID:-your-tenant}" \
-  -e AZURE_AD_CLIENT_SECRET="${AZURE_AD_CLIENT_SECRET:-your-secret}" \
+  -e AZURE_ENTRA_TENANT_ID="${AZURE_ENTRA_TENANT_ID:-${AZURE_AD_TENANT_ID:-your-tenant}}" \
+  -e AZURE_ENTRA_AD_CLIENT_SECRET="${AZURE_ENTRA_AD_CLIENT_SECRET:-your-secret}" \
   -e DEBUG="true" \
   -e DEBUG_USER_ID="${DEBUG_USER_ID:-}" \
   -e ADMIN_EMAIL="${ADMIN_EMAIL:-admin@test.com}" \

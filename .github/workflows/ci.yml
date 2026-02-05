@@ -1,10 +1,8 @@
 name: CI (Unified Container)
 
 on:
-  push:
-    branches: [ master ]
   pull_request:
-    branches: [ master ]
+    branches: [ main ]
 
 jobs:
   backend-ci:
@@ -47,8 +45,8 @@ jobs:
       - name: Install Dependencies
         run: npm ci
 
-      # - name: Lint
-      #   run: npm run lint
+      - name: Lint
+        run: npm run lint
 
       - name: Type Check & Build
         run: npm run build
@@ -85,9 +83,9 @@ jobs:
           NEXT_PUBLIC_API_URL: "http://localhost:8081"
           NEXTAUTH_URL: "http://localhost:8081"
           NEXTAUTH_SECRET: "mock-secret-for-e2e"
-          ENTRA_CLIENT_ID: "mock-client-id"
-          ENTRA_CLIENT_SECRET: "mock-client-secret"
-          ENTRA_TENANT_ID: "common"
+          AZURE_ENTRA_AD_CLIENT_ID: "mock-client-id"
+          AZURE_ENTRA_AD_CLIENT_SECRET: "mock-client-secret"
+          AZURE_ENTRA_TENANT_ID: "common"
 
       - name: Start Frontend Server
         run: |
@@ -95,9 +93,9 @@ jobs:
           NEXT_PUBLIC_API_URL="http://localhost:8081" \
           NEXTAUTH_URL="http://localhost:8081" \
           NEXTAUTH_SECRET="mock-secret-for-e2e" \
-          ENTRA_CLIENT_ID="mock-client-id" \
-          ENTRA_CLIENT_SECRET="mock-client-secret" \
-          ENTRA_TENANT_ID="common" \
+          AZURE_ENTRA_AD_CLIENT_ID="mock-client-id" \
+          AZURE_ENTRA_AD_CLIENT_SECRET="mock-client-secret" \
+          AZURE_ENTRA_TENANT_ID="common" \
           npm run start > /tmp/next.log 2>&1 &
           npx wait-on http://localhost:8081/login
 

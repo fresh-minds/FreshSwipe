@@ -127,18 +127,22 @@ class MatchingService:
 
         matches = []
         for user_b in other_users:
-            score, reasons, match_type = MatchingService.calculate_score(user_a, user_b)
-            # Only create match if there's a positive score
-            if score > 0:
-                match = Match(
-                    user_a_id=user_a.id,
-                    user_b_id=user_b.id,
-                    user_b=user_b,
-                    score=score,
-                    reasons=reasons,
-                    match_type=match_type
-                )
-                matches.append(match)
+            try:
+                score, reasons, match_type = MatchingService.calculate_score(user_a, user_b)
+                # Only create match if there's a positive score
+                if score > 0:
+                    match = Match(
+                        user_a_id=user_a.id,
+                        user_b_id=user_b.id,
+                        user_b=user_b,
+                        score=score,
+                        reasons=reasons,
+                        match_type=match_type
+                    )
+                    matches.append(match)
+            except Exception as e:
+                print(f"Error computing match between {user_id} and {user_b.id}: {e}")
+                continue
 
         # Sort by score descending
         matches.sort(key=lambda x: x.score, reverse=True)
@@ -151,32 +155,8 @@ class MatchingService:
         reasons = []
         is_mentor_match = False
 
-        # 1. Interests Overlap (shared swipes)
-        a_swipes = {s.skill_id: s for s in getattr(user_a, "swipes", [])}
-        b_swipes = {s.skill_id: s for s in getattr(user_b, "swipes", [])}
-        shared_skill_ids = set(a_swipes.keys()) & set(b_swipes.keys())
-        for skill_id in shared_skill_ids:
-            swipe_a = a_swipes[skill_id]
-            swipe_b = b_swipes[skill_id]
-            if swipe_a.direction == SwipeDirection.LEFT or swipe_b.direction == SwipeDirection.LEFT:
-                continue
-            skill_name = getattr(swipe_a, "skill", None)
-            if skill_name and getattr(skill_name, "name", None):
-                skill_label = skill_name.name
-            elif getattr(swipe_b, "skill", None) and getattr(swipe_b.skill, "name", None):
-                skill_label = swipe_b.skill.name
-            else:
-                skill_label = "a shared skill"
-
-            if swipe_a.direction == SwipeDirection.SUPER and swipe_b.direction == SwipeDirection.SUPER:
-                score += 5
-                reasons.append(f"Both super-liked {skill_label}")
-            elif swipe_a.direction == SwipeDirection.RIGHT and swipe_b.direction == SwipeDirection.RIGHT:
-                score += 2
-                reasons.append(f"Shared interest in {skill_label}")
-            else:
-                score += 3
-                reasons.append(f"Shared interest in {skill_label}")
+        # 1. Interests Overlap (REMOVED: Old legacy logic relying on swipes.skill_id)
+        # TODO: Implement new interest matching based on current User/Skill structure if needed.
         
         # 2. Complementary Skills (Mentor/Mentee)
         # A offers X (Current), B wants X (Growth)

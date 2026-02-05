@@ -1,9 +1,14 @@
 'use client';
 
 import { signIn } from 'next-auth/react';
+import { useSearchParams } from 'next/navigation';
+import { Suspense } from 'react';
 import styles from './login.module.css';
 
-export default function LoginPage() {
+function LoginForm() {
+    const searchParams = useSearchParams();
+    const showAdmin = searchParams.get('admin') === 'true';
+
     return (
         <div className={styles.container}>
             <div className={styles.card}>
@@ -25,41 +30,53 @@ export default function LoginPage() {
                     Sign in with Microsoft
                 </button>
 
-                <div className={styles.divider}>
-                    <span>OR</span>
-                </div>
+                {showAdmin && (
+                    <>
+                        <div className={styles.divider}>
+                            <span>OR</span>
+                        </div>
 
-                <form onSubmit={(e) => {
-                    e.preventDefault();
-                    signIn('credentials', {
-                        email: (e.currentTarget.elements.namedItem('email') as HTMLInputElement).value,
-                        password: (e.currentTarget.elements.namedItem('password') as HTMLInputElement).value,
-                        callbackUrl: '/'
-                    });
-                }} className={styles.adminForm}>
-                    <input
-                        name="email"
-                        type="email"
-                        placeholder="admin@admin.com"
-                        className={styles.input}
-                        required
-                    />
-                    <input
-                        name="password"
-                        type="password"
-                        placeholder="Password"
-                        className={styles.input}
-                        required
-                    />
-                    <button type="submit" className={`${styles.loginButton} ${styles.adminButton}`}>
-                        Login as Admin
-                    </button>
-                </form>
+                        <form onSubmit={(e) => {
+                            e.preventDefault();
+                            signIn('credentials', {
+                                email: (e.currentTarget.elements.namedItem('email') as HTMLInputElement).value,
+                                password: (e.currentTarget.elements.namedItem('password') as HTMLInputElement).value,
+                                callbackUrl: '/'
+                            });
+                        }} className={styles.adminForm}>
+                            <input
+                                name="email"
+                                type="email"
+                                placeholder="admin@admin.com"
+                                className={styles.input}
+                                required
+                            />
+                            <input
+                                name="password"
+                                type="password"
+                                placeholder="Password"
+                                className={styles.input}
+                                required
+                            />
+                            <button type="submit" className={`${styles.loginButton} ${styles.adminButton}`}>
+                                Login as Admin
+                            </button>
+                        </form>
+                    </>
+                )}
 
                 <div className={styles.footer}>
                     Internal use only. Powered by FreshMinds Entra ID.
                 </div>
             </div>
         </div>
+    );
+}
+
+export default function LoginPage() {
+    return (
+        <Suspense fallback={<div>Loading...</div>}>
+            <LoginForm />
+        </Suspense>
     );
 }

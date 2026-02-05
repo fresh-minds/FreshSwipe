@@ -45,7 +45,8 @@ export default function AdminPage() {
         const sessionEmail = session?.user?.email;
         const userEmail = sessionEmail || localEmail;
 
-        if (userEmail !== ADMIN_EMAIL) {
+        if (userEmail?.toLowerCase() !== ADMIN_EMAIL.toLowerCase()) {
+            console.warn(`Unauthorized access attempt by: ${userEmail}. Expected: ${ADMIN_EMAIL}`);
             setIsUnauthorized(true);
             setIsLoading(false);
             return;

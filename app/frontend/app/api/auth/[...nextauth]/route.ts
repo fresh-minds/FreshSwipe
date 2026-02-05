@@ -14,7 +14,7 @@ async function refreshAccessToken(token: JWT): Promise<JWT> {
             };
         }
 
-        const url = `https://login.microsoftonline.com/${process.env.ENTRA_TENANT_ID || process.env.AZURE_AD_TENANT_ID || "common"}/oauth2/v2.0/token`;
+        const url = `https://login.microsoftonline.com/${process.env.AZURE_ENTRA_TENANT_ID || process.env.AZURE_AD_TENANT_ID || "common"}/oauth2/v2.0/token`;
 
         const response = await fetch(url, {
             headers: {
@@ -22,8 +22,8 @@ async function refreshAccessToken(token: JWT): Promise<JWT> {
             },
             method: "POST",
             body: new URLSearchParams({
-                client_id: process.env.ENTRA_CLIENT_ID || process.env.AZURE_AD_CLIENT_ID || "",
-                client_secret: process.env.ENTRA_CLIENT_SECRET || process.env.AZURE_AD_CLIENT_SECRET || "",
+                client_id: process.env.AZURE_ENTRA_AD_CLIENT_ID || "",
+                client_secret: process.env.AZURE_ENTRA_AD_CLIENT_SECRET || "",
                 grant_type: "refresh_token",
                 refresh_token: token.refreshToken,
                 scope: "openid profile email User.Read offline_access",
@@ -58,9 +58,9 @@ async function refreshAccessToken(token: JWT): Promise<JWT> {
 const handler = NextAuth({
     providers: [
         AzureADProvider({
-            clientId: process.env.ENTRA_CLIENT_ID || process.env.AZURE_AD_CLIENT_ID || "",
-            clientSecret: process.env.ENTRA_CLIENT_SECRET || process.env.AZURE_AD_CLIENT_SECRET || "",
-            tenantId: process.env.ENTRA_TENANT_ID || process.env.AZURE_AD_TENANT_ID || "common",
+            clientId: process.env.AZURE_ENTRA_AD_CLIENT_ID || "",
+            clientSecret: process.env.AZURE_ENTRA_AD_CLIENT_SECRET || "",
+            tenantId: process.env.AZURE_ENTRA_TENANT_ID || process.env.AZURE_AD_TENANT_ID || "common",
             authorization: {
                 params: {
                     scope: "openid profile email User.Read offline_access",
@@ -97,45 +97,59 @@ const handler = NextAuth({
     ],
     callbacks: {
         async jwt({ token, account, profile }) {
-            // Initial sign in
-            if (account && profile) {
-                return {
-                    accessToken: account.id_token || account.access_token,
-                    // Use id_token if available for bearer, or access_token. 
-                    // Note: Azure AD v2 usually sends a short-lived access token for the graph, 
-                    // but we might be treating id_token as the access token for our backend.
-                    // If we need to refresh, we need the actual access_token logic.
-                    // Given the previous code used id_token OR access_token:
-                    // We'll prioritize capturing the refresh token.
+            try {
+                // Initial sign in
+                if (account && profile) {
+                    console.log("Initial sign-in: processing token");
+                    return {
+                        ...token, // Keep default properties (name, email, picture)
+                        accessToken: account.id_token || account.access_token,
+                        idToken: account.id_token,
+                        refreshToken: account.refresh_token,
+                        accessTokenExpires: (account.expires_at || 0) * 1000,
+                        oid: (profile as any).oid,
+                    };
+                }
 
-                    idToken: account.id_token,
-                    refreshToken: account.refresh_token,
-                    accessTokenExpires: (account.expires_at || 0) * 1000,
-                    oid: (profile as any).oid,
-                };
+                // Return previous token if the access token has not expired yet
+                if (Date.now() < ((token.accessTokenExpires as number) - 5 * 60 * 1000)) {
+                    return token;
+                }
+
+                // Access token has expired, try to update it
+                console.log("Token expired, refreshing...");
+                return await refreshAccessToken(token);
+            } catch (error) {
+                console.error("Error in JWT callback:", error);
+                return { ...token, error: "JWTCallbackError" };
             }
-
-            // Return previous token if the access token has not expired yet
-            // Give a 5 minute buffer
-            if (Date.now() < ((token.accessTokenExpires as number) - 5 * 60 * 1000)) {
-                return token;
-            }
-
-            // Access token has expired, try to update it
-            return await refreshAccessToken(token);
         },
         async session({ session, token }: any) {
-            session.accessToken = token.accessToken;
-            session.idToken = token.idToken;
-            session.error = token.error;
+            try {
+                session.accessToken = token.accessToken;
+                session.idToken = token.idToken;
+                session.error = token.error;
 
-            // Include user ID from Azure AD OID or Subject (for Credentials)
-            if (token.oid) {
-                session.user.id = token.oid;
-            } else if (token.sub) {
-                session.user.id = token.sub;
+                session.user = session.user || {};
+
+                // Include user ID from Azure AD OID or Subject (for Credentials)
+                if (token.oid) {
+                    session.user.id = token.oid;
+                } else if (token.sub) {
+                    session.user.id = token.sub;
+                }
+
+                // Ensure name/email are persisted if missing
+                if (!session.user.name && token.name) session.user.name = token.name;
+                if (!session.user.email && token.email) session.user.email = token.email;
+
+                return session;
+            } catch (error) {
+                console.error("Error in Session callback:", error);
+                // Return a safe fallback session to prevent circular redirects
+                session.error = "SessionCallbackError";
+                return session;
             }
-            return session;
         },
     },
     pages: {

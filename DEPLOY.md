@@ -9,7 +9,7 @@ This guide covers deploying FreshSwipe as a **single Docker container** to Azure
 3. **Environment Variables**: Set required secrets before running the script.
 
 Required environment variables:
-- `AZURE_AD_CLIENT_SECRET`
+- `AZURE_ENTRA_AD_CLIENT_SECRET`
 - `ADMIN_PASSWORD`
 
 Optional environment variables:
