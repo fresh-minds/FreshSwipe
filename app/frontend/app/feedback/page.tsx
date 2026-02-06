@@ -121,6 +121,19 @@ export default function FeedbackPage() {
                             <button type="submit" className="btn btn-primary" disabled={submitting}>
                                 {submitting ? 'Submitting…' : 'Send Feedback'}
                             </button>
+
+                            <div className={styles.divider}>
+                                <span>or</span>
+                            </div>
+
+                            <a
+                                href="https://github.com/fresh-minds/FreshSwipe/issues"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className={styles.githubLink}
+                            >
+                                Report a Bug / Technical Issue on GitHub ↗
+                            </a>
                         </form>
                     </div>
                 </div>

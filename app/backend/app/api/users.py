@@ -11,7 +11,9 @@ from app.api.deps import get_current_user, is_admin_user
 from app.models.user import User, UserSkill, SkillType
 from app.models.skill import Skill
 from app.models.swipe import Swipe
+
 from app.utils.user_helpers import resolve_user_id
+from app.services.matching import MatchingService
 from app.schemas.user import (
     UserCreate,
     UserResponse,
@@ -116,6 +118,9 @@ async def update_me(
                 skill_type=SkillType.GROWTH
             ))
     
+    # Invalidate match cache so matches are recomputed with new skills next time
+    await MatchingService.invalidate_cache(db, current_user.id)
+
     await db.commit()
     await db.refresh(current_user)
     return current_user
@@ -198,6 +203,9 @@ async def onboard_user(onboarding: UserOnboarding, db: AsyncSession = Depends(ge
         )
         db.add(user_skill)
     
+    # Invalidate match cache to ensure fresh matches for the new/updated user
+    await MatchingService.invalidate_cache(db, user.id)
+
     await db.flush()
     await db.refresh(user)
     return user

@@ -11,7 +11,7 @@ from app.models.swipe import SwipeDirection
 from app.models.match import Match
 
 # Cache TTL: matches are recomputed after this duration
-MATCH_CACHE_TTL = timedelta(hours=24)
+MATCH_CACHE_TTL = timedelta(hours=1)
 
 
 class MatchingService:

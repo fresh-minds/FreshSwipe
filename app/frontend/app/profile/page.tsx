@@ -18,6 +18,7 @@ export default function ProfilePage() {
     const [availableSkills, setAvailableSkills] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
+    const [showMatchPopup, setShowMatchPopup] = useState(false);
 
     useEffect(() => {
         if (status === 'authenticated') {
@@ -80,8 +81,19 @@ export default function ProfilePage() {
                 },
                 body: JSON.stringify(payload)
             });
-            alert('Profile updated successfully!');
-            router.push('/');
+
+            // Check for new matches
+            const matchRes = await fetch('/api/v1/matches/?limit=1', {
+                headers: { 'Authorization': `Bearer ${authToken}` }
+            });
+            const matches = await matchRes.json().catch(() => []);
+
+            if (Array.isArray(matches) && matches.length > 0) {
+                setShowMatchPopup(true);
+            } else {
+                alert('Profile updated successfully!');
+                router.push('/');
+            }
         } catch (err) {
             console.error("Update failed", err);
         } finally {
@@ -93,6 +105,28 @@ export default function ProfilePage() {
 
     return (
         <div className="page">
+            {showMatchPopup && (
+                <div className={styles.modalOverlay}>
+                    <div className={styles.modalContent}>
+                        <h2>Profile Saved! 🎯</h2>
+                        <p>We found potential coffee dates based on your updated skills!</p>
+                        <div className={styles.modalActions}>
+                            <button
+                                className={styles.primaryButton}
+                                onClick={() => router.push('/matches')}
+                            >
+                                View Matches
+                            </button>
+                            <button
+                                className={styles.secondaryButton}
+                                onClick={() => router.push('/')}
+                            >
+                                Go Home
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
             <header className="page-header">
                 <div className="container">
                     <nav className="nav">

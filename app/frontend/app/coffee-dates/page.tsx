@@ -311,7 +311,20 @@ export default function CoffeeDatesPage() {
                                                             <strong>☕ Coffee with {otherPerson}</strong>
                                                             <p>{cd.location || 'Location TBD'}</p>
                                                         </div>
-                                                        <span className={styles.statusBadge}>Confirmed</span>
+                                                        <div className={styles.acceptedActions}>
+                                                            <span className={styles.statusBadge}>Confirmed</span>
+                                                            <a
+                                                                className={styles.calendarButton}
+                                                                href={isRequester ?
+                                                                    `https://outlook.office.com/calendar/0/deeplink/compose?subject=${encodeURIComponent("FreshSwipe Coffee Date: " + otherPerson)}&body=${encodeURIComponent(`Hi ${otherPerson},\n\nI'm looking forward to our coffee date! Does this time work for you?\n\nBest,`)}&to=${cd.recipient_email}` :
+                                                                    `https://outlook.office.com/calendar/0/deeplink/compose?subject=${encodeURIComponent("FreshSwipe Coffee Date: " + otherPerson)}&body=${encodeURIComponent(`Hi ${otherPerson},\n\nI'm looking forward to our coffee date! Does this time work for you?\n\nBest,`)}&to=${cd.requester_email}`
+                                                                }
+                                                                target="_blank"
+                                                                rel="noopener noreferrer"
+                                                            >
+                                                                📅 Schedule
+                                                            </a>
+                                                        </div>
                                                     </div>
                                                 );
                                             })}

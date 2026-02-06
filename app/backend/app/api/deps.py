@@ -4,6 +4,7 @@ import uuid
 import time
 import jwt
 import httpx
+from typing import Optional
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -50,7 +51,7 @@ async def get_ms_public_keys():
         return keys
 
 async def get_current_user(
-    token: str | None = Depends(oauth2_scheme),
+    token: Optional[str] = Depends(oauth2_scheme),
     db: AsyncSession = Depends(get_db)
 ) -> User:
     """Validate token and return current user."""

@@ -1,0 +1,5 @@
+# This file defines who owns the code in this repo.
+# Code owners are automatically requested for review on new pull requests.
+
+# Match all files and assign to the owner
+*       @karelgoense    # Replace with your actual GitHub username if different

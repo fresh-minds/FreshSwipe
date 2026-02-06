@@ -228,13 +228,22 @@ export default function SwipePage() {
                             View My Matches →
                         </Link>
                     </motion.div>
+                ) : !currentCandidate ? (
+                    <div style={{ textAlign: 'center', marginTop: '4rem' }}>
+                        <h3>No more profiles</h3>
+                        <p>Check back later for new colleagues!</p>
+                        <button
+                            onClick={() => window.location.reload()}
+                            className="btn btn-secondary mt-md"
+                        >
+                            Refresh
+                        </button>
+                    </div>
                 ) : (
                     <>
-                        {currentCandidate && (
-                            <div className={styles.counter}>
-                                {currentIndex + 1} / {candidates.length}
-                            </div>
-                        )}
+                        <div className={styles.counter}>
+                            {currentIndex + 1} / {candidates.length}
+                        </div>
 
                         <div className={styles.cardContainer}>
                             {/* Background cards */}
@@ -246,103 +255,85 @@ export default function SwipePage() {
 
                             {/* Active card */}
                             <AnimatePresence>
-                                {currentCandidate && (
+                                <motion.div
+                                    key={currentCandidate.id}
+                                    className={styles.card}
+                                    style={{ x, y, rotate, opacity }}
+                                    drag
+                                    dragConstraints={{ left: 0, right: 0, top: 0, bottom: 0 }}
+                                    dragElastic={1}
+                                    onDragEnd={handleDragEnd}
+                                    initial={{ scale: 0.95, opacity: 0 }}
+                                    animate={{ scale: 1, opacity: 1 }}
+                                    exit={{
+                                        x: x.get() > 0 ? 500 : x.get() < 0 ? -500 : 0,
+                                        y: y.get() < -50 ? -500 : 0,
+                                        opacity: 0,
+                                        scale: 0.5,
+                                        transition: { duration: 0.2 }
+                                    }}
+                                >
+                                    {/* Swipe indicators */}
                                     <motion.div
-                                        key={currentCandidate.id}
-                                        className={styles.card}
-                                        style={{ x, y, rotate, opacity }}
-                                        drag
-                                        dragConstraints={{ left: 0, right: 0, top: 0, bottom: 0 }}
-                                        dragElastic={1}
-                                        onDragEnd={handleDragEnd}
-                                        initial={{ scale: 0.95, opacity: 0 }}
-                                        animate={{ scale: 1, opacity: 1 }}
-                                        exit={{
-                                            x: x.get() > 0 ? 500 : x.get() < 0 ? -500 : 0,
-                                            y: y.get() < -50 ? -500 : 0,
-                                            opacity: 0,
-                                            scale: 0.5,
-                                            transition: { duration: 0.2 }
-                                        }}
+                                        className={`${styles.indicator} ${styles.indicatorLeft}`}
+                                        style={{ opacity: leftIndicatorOpacity }}
                                     >
-                                        {/* Swipe indicators */}
-                                        <motion.div
-                                            className={`${styles.indicator} ${styles.indicatorLeft}`}
-                                            style={{ opacity: leftIndicatorOpacity }}
-                                        >
-                                            ✕
-                                        </motion.div>
-                                        <motion.div
-                                            className={`${styles.indicator} ${styles.indicatorRight}`}
-                                            style={{ opacity: rightIndicatorOpacity }}
-                                        >
-                                            ✓
-                                        </motion.div>
-                                        <motion.div
-                                            className={`${styles.indicator} ${styles.indicatorSuper}`}
-                                            style={{ opacity: superIndicatorOpacity }}
-                                        >
-                                            ⭐
-                                        </motion.div>
-
-                                        <div className={styles.cardContent}>
-                                            <div className={styles.cardIcon}>
-                                                {currentCandidate.name.charAt(0).toUpperCase()}
-                                            </div>
-                                            <h2 className={styles.cardTitle}>{currentCandidate.name}</h2>
-                                            <span className={styles.cardCategory}>{currentCandidate.unit}</span>
-                                            {currentCandidate.seniority && (
-                                                <p className={styles.cardDescription}>{currentCandidate.seniority}</p>
-                                            )}
-                                        </div>
+                                        ✕
                                     </motion.div>
-                                )}
+                                    <motion.div
+                                        className={`${styles.indicator} ${styles.indicatorRight}`}
+                                        style={{ opacity: rightIndicatorOpacity }}
+                                    >
+                                        ✓
+                                    </motion.div>
+                                    <motion.div
+                                        className={`${styles.indicator} ${styles.indicatorSuper}`}
+                                        style={{ opacity: superIndicatorOpacity }}
+                                    >
+                                        ⭐
+                                    </motion.div>
+
+                                    <div className={styles.cardContent}>
+                                        <div className={styles.cardIcon}>
+                                            {currentCandidate.name.charAt(0).toUpperCase()}
+                                        </div>
+                                        <h2 className={styles.cardTitle}>{currentCandidate.name}</h2>
+                                        <span className={styles.cardCategory}>{currentCandidate.unit}</span>
+                                        {currentCandidate.seniority && (
+                                            <p className={styles.cardDescription}>{currentCandidate.seniority}</p>
+                                        )}
+                                    </div>
+                                </motion.div>
                             </AnimatePresence>
                         </div>
 
                         {/* Action buttons */}
-                        {/* Action buttons - only show if there is a candidate */}
-                        {currentCandidate && (
-                            <div className={styles.actions}>
-                                <button
-                                    className={`btn btn-icon btn-danger ${styles.actionBtn}`}
-                                    onClick={() => handleButtonSwipe('left')}
-                                    title="Pass"
-                                >
-                                    ✕
-                                </button>
-                                <button
-                                    className={`btn btn-icon btn-super ${styles.actionBtn} ${styles.superBtn}`}
-                                    onClick={() => handleButtonSwipe('super')}
-                                    title="Super Like"
-                                >
-                                    ⭐
-                                </button>
-                                <button
-                                    className={`btn btn-icon btn-success ${styles.actionBtn}`}
-                                    onClick={() => handleButtonSwipe('right')}
-                                    title="Connect"
-                                >
-                                    ✓
-                                </button>
-                            </div>
-                        )}
+                        <div className={styles.actions}>
+                            <button
+                                className={`btn btn-icon btn-danger ${styles.actionBtn}`}
+                                onClick={() => handleButtonSwipe('left')}
+                                title="Pass"
+                            >
+                                ✕
+                            </button>
+                            <button
+                                className={`btn btn-icon btn-super ${styles.actionBtn} ${styles.superBtn}`}
+                                onClick={() => handleButtonSwipe('super')}
+                                title="Super Like"
+                            >
+                                ⭐
+                            </button>
+                            <button
+                                className={`btn btn-icon btn-success ${styles.actionBtn}`}
+                                onClick={() => handleButtonSwipe('right')}
+                                title="Connect"
+                            >
+                                ✓
+                            </button>
+                        </div>
 
                         <div className={styles.hint}>
-                            {currentCandidate ? (
-                                <p>Drag card or use buttons • Up = Super Like</p>
-                            ) : (
-                                <div style={{ textAlign: 'center', marginTop: '2rem' }}>
-                                    <h3>No more profiles</h3>
-                                    <p>Check back later for new colleagues!</p>
-                                    <button
-                                        onClick={() => window.location.reload()}
-                                        className="btn btn-secondary mt-md"
-                                    >
-                                        Refresh
-                                    </button>
-                                </div>
-                            )}
+                            <p>Drag card or use buttons • Up = Super Like</p>
                         </div>
                     </>
                 )}
