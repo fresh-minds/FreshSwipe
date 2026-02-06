@@ -173,8 +173,7 @@ async def get_trending_skills(
     current_user: User = Depends(get_current_user),
 ):
     """Get trending skills based on GROWTH (learning interest)."""
-    if not is_admin_user(current_user):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required")
+    # Allowed for all authenticated users to see trends
     result = await db.execute(
         select(
             Skill.name,
@@ -204,8 +203,7 @@ async def get_category_breakdown(
     current_user: User = Depends(get_current_user),
 ):
     """Get interest breakdown by category (Growth vs Current)."""
-    if not is_admin_user(current_user):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required")
+    # Allowed for all authenticated users to see category breakdown
     # Count Growth Skills per category
     result = await db.execute(
         select(
