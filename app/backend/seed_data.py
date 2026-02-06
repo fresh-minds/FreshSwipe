@@ -54,6 +54,14 @@ SKILLS_DATA = [
     {"name": "Adaptability", "category": "Soft Skills", "description": "Flexibility in fast-paced environments", "icon": "🦎", "display_order": 22},
     {"name": "Teamwork", "category": "Soft Skills", "description": "Collaboration and cooperation", "icon": "🤝", "display_order": 23},
     {"name": "Client Management", "category": "Soft Skills", "description": "Managing stakeholder expectations", "icon": "👔", "display_order": 24},
+
+    # Business / Staff
+    {"name": "Project Management", "category": "Business", "description": "Planning and executing projects", "icon": "📅", "display_order": 25},
+    {"name": "Agile / Scrum", "category": "Business", "description": "Agile methodologies", "icon": "🔄", "display_order": 26},
+    {"name": "Sales", "category": "Business", "description": "Business development and sales", "icon": "💼", "display_order": 27},
+    {"name": "Recruitment", "category": "Business", "description": "Talent acquisition", "icon": "🔍", "display_order": 28},
+    {"name": "Marketing", "category": "Business", "description": "Market strategy and promotion", "icon": "📢", "display_order": 29},
+    {"name": "Finance", "category": "Business", "description": "Financial planning and analysis", "icon": "💰", "display_order": 30},
 ]
 
 # FreshMinds colleagues with realistic profiles for coffee date matching
@@ -137,6 +145,27 @@ FRESHMINDS_COLLEAGUES = [
         "entra_oid": "oid-bram-dv",
         "current_skills": ["GCP", "Kubernetes", "DevOps"],
         "growth_skills": ["MLOps", "Generative AI"],
+    },
+    # Staff / Business Users
+    {
+        "name": "Julia de Jong",
+        "email": "julia.dejong@freshminds.nl",
+        "unit": UnitType.STAFF,
+        "seniority": "Senior",
+        "availability": "Weekly",
+        "entra_oid": "oid-julia-dj",
+        "current_skills": ["Recruitment", "Communication", "Management"],
+        "growth_skills": ["Agile / Scrum", "Marketing"],
+    },
+    {
+        "name": "Mark Rutte",
+        "email": "mark.rutte@freshminds.nl",
+        "unit": UnitType.STAFF,
+        "seniority": "Principal",
+        "availability": "Ad-hoc",
+        "entra_oid": "oid-mark-r",
+        "current_skills": ["Project Management", "Leadership", "Client Management"],
+        "growth_skills": ["Generative AI", "Data Engineering"],
     },
     {
         "name": "Admin User",

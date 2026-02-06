@@ -95,11 +95,14 @@ export default function MatchesPage() {
                                 <div className={styles.empty}>{error}</div>
                             )}
                             {matches.map(match => (
-                                <div key={match.id} className={styles.matchCard}>
-                                    <div className={styles.scoreBadge}>{Math.round(match.score)} pts</div>
+                                <div key={match.id} className={`${styles.matchCard} ${match.match_type === 'mutual' ? styles.mutual : ''}`}>
+                                    <div className={styles.scoreBadge} style={{ backgroundColor: match.match_type === 'mutual' ? '#ff4757' : undefined }}>
+                                        {match.match_type === 'mutual' ? '❤️' : `${Math.round(match.score)} pts`}
+                                    </div>
                                     <h2 className={styles.userName}>{match.user_b_name}</h2>
                                     <h3 className={styles.matchType}>
-                                        {match.match_type === 'mentor' ? '🚀 Potential Mentor' : '🤝 Professional Peer'}
+                                        {match.match_type === 'mutual' ? '✨ It\'s a Match!' :
+                                            match.match_type === 'mentor' ? '🚀 Potential Mentor' : '🤝 Professional Peer'}
                                     </h3>
                                     <ul className={styles.reasons}>
                                         {match.reasons.map((reason, i) => (

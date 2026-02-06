@@ -355,6 +355,9 @@ SETTINGS=(
     "DB_ADMIN_PASS=@Microsoft.KeyVault(SecretUri=https://$KV_NAME.vault.azure.net/secrets/DB-ADMIN-PASS)"
     "ADMIN_PASSWORD=@Microsoft.KeyVault(SecretUri=https://$KV_NAME.vault.azure.net/secrets/ADMIN-PASSWORD)"
     "NEXTAUTH_SECRET=@Microsoft.KeyVault(SecretUri=https://$KV_NAME.vault.azure.net/secrets/NEXTAUTH-SECRET)"
+    
+    # Feature Flags
+    "SEED_ON_STARTUP=true"
 )
 
 if [ -n "$DATABASE_URL" ]; then
