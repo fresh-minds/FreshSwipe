@@ -59,14 +59,25 @@ class MatchingService:
     @staticmethod
     async def invalidate_cache(db: AsyncSession, user_id: uuid.UUID) -> None:
         """Invalidate cached matches for a user (call when swipes change)."""
-        await db.execute(delete(Match).where(Match.user_a_id == user_id))
+        # Only delete algorithmic matches (mentor/peer), preserve mutual ones
+        await db.execute(
+            delete(Match).where(
+                Match.user_a_id == user_id, 
+                Match.match_type != 'mutual'
+            )
+        )
         await db.commit()
 
     @staticmethod
     async def compute_and_cache_matches(db: AsyncSession, user_id: uuid.UUID) -> List[Match]:
         """Compute matches for a user and cache them in the database."""
-        # Delete existing cached matches
-        await db.execute(delete(Match).where(Match.user_a_id == user_id))
+        # Delete existing cached matches (preserve mutual ones)
+        await db.execute(
+            delete(Match).where(
+                Match.user_a_id == user_id,
+                Match.match_type != 'mutual'
+            )
+        )
         
         # Compute fresh matches
         matches = await MatchingService._compute_all_matches(db, user_id)

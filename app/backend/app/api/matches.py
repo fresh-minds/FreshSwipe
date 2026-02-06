@@ -39,6 +39,7 @@ async def list_matches(
             created_at=m.created_at
         )
         for m in matches[:limit]
+        if m.user_b_id != current_user.id
     ]
 
 

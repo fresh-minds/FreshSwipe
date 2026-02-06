@@ -87,7 +87,8 @@ class TestResult:
 class TestSuite:
     def __init__(self):
         self.results: list[TestResult] = []
-        self.test_data: Dict[str, Any] = {}  # Store data between tests
+        self.test_data: Dict[str, Any] = {}
+        self.session = requests.Session()
     
     def add_result(self, result: TestResult):
         self.results.append(result)
@@ -112,6 +113,64 @@ def suite() -> "TestSuite":
     return TestSuite()
 
 # ==============================================================================
+# Auth Helpers
+# ==============================================================================
+def login_admin(suite: TestSuite):
+    """Attempt to log in as admin to get session cookie."""
+    print_subheader("Authentication")
+    
+    admin_email = os.getenv("ADMIN_EMAIL")
+    admin_password = os.getenv("ADMIN_PASSWORD")
+    
+    if not admin_email or not admin_password:
+        warn_test("Skipping Login", "ADMIN_EMAIL and ADMIN_PASSWORD not set")
+        return
+
+    # 1. Get CSRF Token
+    try:
+        resp = suite.session.get(f"{FRONTEND_URL}/api/auth/csrf", timeout=TIMEOUT)
+        if resp.status_code == 200:
+            csrf_token = resp.json().get("csrfToken")
+            pass_test("Fetch CSRF Token")
+        else:
+            fail_test("Fetch CSRF Token", f"Status {resp.status_code}")
+            return
+    except Exception as e:
+        fail_test("Fetch CSRF Token", str(e))
+        return
+
+    # 2. Login
+    login_data = {
+        "redirect": "false",
+        "csrfToken": csrf_token,
+        "callbackUrl": f"{FRONTEND_URL}/",
+        "json": "true",
+        "email": admin_email,
+        "password": admin_password
+    }
+    
+    try:
+        resp = suite.session.post(
+            f"{FRONTEND_URL}/api/auth/callback/credentials",
+            data=login_data,
+            timeout=TIMEOUT
+        )
+        if resp.status_code in [200, 302]:
+             # Check for auth cookie
+            cookies = suite.session.cookies.get_dict()
+            if any('next-auth.session-token' in k for k in cookies.keys()) or \
+               any('__Secure-next-auth.session-token' in k for k in cookies.keys()):
+                pass_test(f"Admin Login ({admin_email})", "Session established")
+            else:
+                fail_test(f"Admin Login ({admin_email})", "No session cookie found")
+                info(f"Response: {resp.text[:200]}")
+        else:
+            fail_test(f"Admin Login ({admin_email})", f"Status {resp.status_code}")
+    except Exception as e:
+        fail_test("Admin Login", str(e))
+
+
+# ==============================================================================
 # HTTP Request Wrapper
 # ==============================================================================
 def make_request(
@@ -130,8 +189,11 @@ def make_request(
     url = f"{base_url or BASE_URL}{endpoint}"
     start_time = datetime.now()
     
+    # Use suite session if available, else new request
+    requester = suite.session if suite else requests
+    
     try:
-        response = requests.request(
+        response = requester.request(
             method=method,
             url=url,
             json=json_data,
@@ -545,6 +607,9 @@ def main():
     print()
     
     suite = TestSuite()
+    
+    # Attempt login if credentials provided
+    login_admin(suite)
     
     # ========================================
     # Backend Tests

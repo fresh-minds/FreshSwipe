@@ -8,6 +8,7 @@ from app.database import get_db
 from app.api.deps import get_current_user, is_admin_user
 from app.models.swipe import Swipe, SwipeDirection
 from app.models.user import User
+from app.models.match import Match
 from app.schemas.swipe import SwipeCreate, SwipeResponse, SwipeBatch
 from app.utils.user_helpers import resolve_user_id
 
@@ -49,6 +50,45 @@ async def create_swipe(
     db.add(swipe)
     await db.flush()
     await db.refresh(swipe)
+
+    # CHECK FOR MUTUAL MATCH
+    # If this swipe is 'right' or 'super', check if target user also swiped 'right' or 'super'
+    if swipe_data.direction in [SwipeDirection.RIGHT, SwipeDirection.SUPER]:
+        reciprocal_result = await db.execute(
+            select(Swipe).where(
+                Swipe.user_id == swipe_data.target_user_id,
+                Swipe.target_user_id == real_user_id,
+                Swipe.direction.in_([SwipeDirection.RIGHT, SwipeDirection.SUPER]),
+                Swipe.user_id != real_user_id  # Prevent self-matching
+            )
+        )
+        reciprocal_swipe = reciprocal_result.scalar_one_or_none()
+        
+        if reciprocal_swipe:
+            # IT'S A MATCH! Create mutual match records for both users
+            # User A -> User B
+            match_ab = Match(
+                user_a_id=real_user_id,
+                user_b_id=swipe_data.target_user_id,
+                score=100.0,
+                reasons=["Mutual Swipe! You both liked each other."],
+                match_type="mutual"
+            )
+            # User B -> User A
+            match_ba = Match(
+                user_a_id=swipe_data.target_user_id,
+                user_b_id=real_user_id,
+                score=100.0,
+                reasons=["Mutual Swipe! You both liked each other."],
+                match_type="mutual"
+            )
+            
+            # Check if they already exist to avoid duplicates (though rare with sequential logic)
+            # For simplicity, we trust the DB constraints or just add
+            db.add(match_ab)
+            db.add(match_ba)
+            await db.commit()  # Commit immediately to safe keep the match
+
     return swipe
 
 
