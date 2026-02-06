@@ -4,6 +4,7 @@ import { useSession } from 'next-auth/react';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import ProfileModal from '@/components/ProfileModal';
 import styles from './matches.module.css';
 
 interface Match {
@@ -22,6 +23,7 @@ export default function MatchesPage() {
     const [matches, setMatches] = useState<Match[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
 
     useEffect(() => {
         if (status === 'authenticated') {
@@ -112,22 +114,24 @@ export default function MatchesPage() {
                                     <div className={styles.actions}>
                                         <button
                                             className={styles.connectButton}
-                                            onClick={() => alert(`Viewing profile for ${match.user_b_name}\nSkills: ${match.reasons.join(', ')}`)}
+                                            onClick={() => setSelectedUserId(match.user_b_id)}
                                         >
                                             View Profile
                                         </button>
-                                        <button
+                                        <a
                                             className={styles.teamsButton}
-                                            onClick={() => {
-                                                if (match.user_b_email) {
-                                                    window.open(`https://teams.microsoft.com/l/chat/0/0?users=${match.user_b_email}`, '_blank');
-                                                } else {
+                                            href={match.user_b_email ? `https://outlook.office.com/calendar/0/deeplink/compose?subject=${encodeURIComponent("Coffee Chat? ☕")}&body=${encodeURIComponent(`Hi ${match.user_b_name},\n\nI saw your profile on FreshSwipe and noticed we have compatible skills! Would you be open to grabbing a virtual or in-person coffee sometime?\n\nBest,`)}&to=${match.user_b_email}` : '#'}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            onClick={(e) => {
+                                                if (!match.user_b_email) {
+                                                    e.preventDefault();
                                                     alert("This user has hidden their email.");
                                                 }
                                             }}
                                         >
-                                            Teams Chat
-                                        </button>
+                                            📅 Schedule Coffee
+                                        </a>
                                     </div>
                                 </div>
                             ))}
@@ -140,6 +144,14 @@ export default function MatchesPage() {
                     )}
                 </div>
             </main>
+
+            {selectedUserId && (
+                <ProfileModal
+                    userId={selectedUserId}
+                    authToken={authToken}
+                    onClose={() => setSelectedUserId(null)}
+                />
+            )}
         </div>
     );
 }

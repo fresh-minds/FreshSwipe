@@ -1,0 +1,202 @@
+.overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(4px);
+    z-index: 1000;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 1rem;
+}
+
+.modal {
+    background: white;
+    border-radius: 1.5rem;
+    width: 100%;
+    max-width: 500px;
+    max-height: 90vh;
+    overflow-y: auto;
+    position: relative;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+.header {
+    position: relative;
+    padding: 2rem 1.5rem 1rem;
+    text-align: center;
+    background: linear-gradient(135deg, rgba(82, 113, 255, 0.05) 0%, rgba(82, 113, 255, 0.1) 100%);
+}
+
+.closeButton {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    background: white;
+    border: none;
+    border-radius: 50%;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    transition: transform 0.2s;
+    font-size: 1.2rem;
+    color: #666;
+    z-index: 100;
+}
+
+.closeButton:hover {
+    transform: scale(1.1);
+    color: #333;
+}
+
+.avatar {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #6C63FF 0%, #5271FF 100%);
+    color: white;
+    font-size: 2rem;
+    font-weight: bold;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin: 0 auto 1rem;
+    box-shadow: 0 4px 10px rgba(82, 113, 255, 0.3);
+}
+
+.name {
+    margin: 0;
+    font-size: 1.5rem;
+    color: #1a1a1a;
+    font-weight: 700;
+}
+
+.role {
+    margin: 0.25rem 0 0;
+    color: #666;
+    font-size: 1rem;
+}
+
+.content {
+    padding: 1.5rem;
+}
+
+.section {
+    margin-bottom: 1.5rem;
+}
+
+.sectionTitle {
+    font-size: 0.875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #888;
+    margin-bottom: 0.75rem;
+    font-weight: 600;
+}
+
+.chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.chip {
+    padding: 0.35rem 0.75rem;
+    border-radius: 2rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
+.chipPrimary {
+    background-color: rgba(82, 113, 255, 0.1);
+    color: #5271FF;
+}
+
+.chipSecondary {
+    background-color: rgba(16, 185, 129, 0.1);
+    color: #10B981;
+}
+
+.bio {
+    color: #444;
+    line-height: 1.6;
+    font-size: 0.95rem;
+    background: #f8f9fa;
+    padding: 1rem;
+    border-radius: 0.75rem;
+}
+
+.actions {
+    padding: 1rem 1.5rem 1.5rem;
+    display: flex;
+    gap: 1rem;
+}
+
+.actionButton {
+    flex: 1;
+    padding: 0.75rem;
+    border-radius: 0.75rem;
+    border: none;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 0.5rem;
+    text-decoration: none;
+}
+
+.primaryAction {
+    background: #5271FF;
+    color: white;
+}
+
+.primaryAction:hover {
+    background: #405BE5;
+}
+
+.secondaryAction {
+    background: #f3f4f6;
+    color: #4b5563;
+}
+
+.secondaryAction:hover {
+    background: #e5e7eb;
+}
+
+.loading {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    height: 300px;
+    gap: 1rem;
+    color: #666;
+}
+
+.spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid #f3f3f3;
+    border-top: 3px solid #5271FF;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% {
+        transform: rotate(0deg);
+    }
+
+    100% {
+        transform: rotate(360deg);
+    }
+}

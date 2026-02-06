@@ -25,6 +25,18 @@ export interface User {
     updated_at: string;
 }
 
+export interface UserSkill {
+    id: string;
+    skill_id: string;
+    skill_type: 'CURRENT' | 'GROWTH';
+    skill_name: string;
+}
+
+export interface UserWithSkills extends User {
+    current_skills: UserSkill[];
+    growth_skills: UserSkill[];
+}
+
 export interface Swipe {
     id: string;
     user_id: string;
@@ -107,7 +119,7 @@ export const usersApi = {
             headers: authHeaders(accessToken),
         }),
     getById: (id: string, accessToken?: string) =>
-        fetchAPI<User>(`/users/${id}`, {
+        fetchAPI<UserWithSkills>(`/users/${id}`, {
             headers: authHeaders(accessToken),
         }),
     list: (accessToken?: string) => fetchAPI<User[]>('/users/', {

@@ -254,8 +254,9 @@ async def get_user(
 ):
     """Get a user by ID with their skills."""
     real_user_id = await resolve_user_id(db, user_id)
-    if real_user_id != current_user.id and not is_admin_user(current_user):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
+    # Allow any authenticated user to view profiles (needed for matches/networking)
+    # if real_user_id != current_user.id and not is_admin_user(current_user):
+    #     raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
     
     result = await db.execute(
         select(User)

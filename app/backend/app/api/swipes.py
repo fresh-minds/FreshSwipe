@@ -58,7 +58,8 @@ async def create_swipe(
             select(Swipe).where(
                 Swipe.user_id == swipe_data.target_user_id,
                 Swipe.target_user_id == real_user_id,
-                Swipe.direction.in_([SwipeDirection.RIGHT, SwipeDirection.SUPER])
+                Swipe.direction.in_([SwipeDirection.RIGHT, SwipeDirection.SUPER]),
+                Swipe.user_id != real_user_id  # Prevent self-matching
             )
         )
         reciprocal_swipe = reciprocal_result.scalar_one_or_none()
