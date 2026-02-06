@@ -62,6 +62,7 @@ SKILLS_DATA = [
     {"name": "Recruitment", "category": "Business", "description": "Talent acquisition", "icon": "🔍", "display_order": 28},
     {"name": "Marketing", "category": "Business", "description": "Market strategy and promotion", "icon": "📢", "display_order": 29},
     {"name": "Finance", "category": "Business", "description": "Financial planning and analysis", "icon": "💰", "display_order": 30},
+    {"name": "Management", "category": "Business", "description": "People and team management", "icon": "👥", "display_order": 31},
 ]
 
 # FreshMinds colleagues with realistic profiles for coffee date matching

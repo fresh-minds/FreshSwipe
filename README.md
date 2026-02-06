@@ -64,16 +64,16 @@ graph TD
     
     subgraph Container
         Nginx[Nginx Reverse Proxy]
-        Frontend[Next.js (Node.js)]
-        Backend[FastAPI (Python)]
+        Frontend["Next.js (Node.js)"]
+        Backend["FastAPI (Python)"]
         Supervisor[Supervisor Process Manager]
         
         Nginx -->|/| Frontend
         Nginx -->|/api| Backend
-        Frontend -->|/api (server-side)| Backend
+        Frontend -->|"/api (server-side)"| Backend
     end
     
-    Backend -->|SQL| DB[(Azure SQL / Postgres)]
+    Backend -->|SQL| DB[("Azure SQL / Postgres")]
     Backend --> KeyVault[Azure Key Vault]
 ```
 
