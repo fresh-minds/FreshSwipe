@@ -6,6 +6,7 @@ from app.api.analytics import router as analytics_router
 from app.api.matches import router as matches_router
 from app.api.coffee_dates import router as coffee_dates_router
 from app.api.feedback import router as feedback_router
+from app.api.chat import router as chat_router
 
 __all__ = [
     "users_router", 
@@ -15,4 +16,5 @@ __all__ = [
     "matches_router",
     "coffee_dates_router",
     "feedback_router",
+    "chat_router",
 ]

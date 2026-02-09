@@ -9,7 +9,7 @@ from sqlalchemy.exc import DBAPIError, OperationalError
 
 from app.config import get_settings
 from app.database import init_db
-from app.api import users_router, skills_router, swipes_router, analytics_router, matches_router, coffee_dates_router, feedback_router
+from app.api import users_router, skills_router, swipes_router, analytics_router, matches_router, coffee_dates_router, feedback_router, chat_router
 from app.utils.db_errors import is_transient_db_error
 from seed_data import seed_database
 
@@ -55,6 +55,7 @@ app.include_router(analytics_router, prefix=settings.api_prefix)
 app.include_router(matches_router, prefix=settings.api_prefix)
 app.include_router(coffee_dates_router, prefix=settings.api_prefix)
 app.include_router(feedback_router, prefix=settings.api_prefix)
+app.include_router(chat_router, prefix=settings.api_prefix)
 
 
 @app.get("/")
