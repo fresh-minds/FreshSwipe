@@ -58,9 +58,16 @@ async def get_me(
             
     return UserWithSkills(
         id=user.id,
+        entra_oid=user.entra_oid,
         name=user.name,
         email=user.email,
         unit=user.unit,
+        seniority=user.seniority,
+        availability=user.availability,
+        looking_for=user.looking_for,
+        offering=user.offering,
+        is_searchable=user.is_searchable,
+        show_email=user.show_email,
         created_at=user.created_at,
         updated_at=user.updated_at,
         current_skills=current_skills,
