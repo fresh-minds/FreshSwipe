@@ -82,3 +82,5 @@ class TestUserAPI:
         assert response.status_code == 200
         data = response.json()
         assert data["id"] == str(test_user.id)
+        assert data["seniority"] == test_user.seniority
+        assert data["availability"] == test_user.availability
