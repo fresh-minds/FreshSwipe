@@ -9,9 +9,12 @@ import styles from './page.module.css';
 
 const ADMIN_EMAIL = 'karel.goense@freshminds.nl';
 
+import { ChatBot } from '@/components/ChatBot';
+
 export default function Home() {
     const { data: session } = useSession();
     const [isAdmin, setIsAdmin] = useState(false);
+    const [isChatOpen, setIsChatOpen] = useState(false);
 
     useEffect(() => {
         // Check both session email and localStorage email
@@ -70,19 +73,26 @@ export default function Home() {
                         animate={{ opacity: 1, scale: 1 }}
                         transition={{ duration: 0.6, delay: 0.2 }}
                     >
-                        <div className={styles.cardStack}>
-                            <div className={`${styles.demoCard} ${styles.card3}`}>
-                                <span className={styles.cardIcon}>🔒</span>
-                                <span className={styles.cardTitle}>Security</span>
+                        <div className={styles.cardStackWrapper}>
+                            <div className={styles.cardStack}>
+                                <div className={`${styles.demoCard} ${styles.card3}`}>
+                                    <span className={styles.cardIcon}>🔒</span>
+                                </div>
+                                <div className={`${styles.demoCard} ${styles.card2}`}>
+                                    <span className={styles.cardIcon}>☁️</span>
+                                </div>
+                                <motion.div
+                                    className={`${styles.demoCard} ${styles.card1} ${styles.clickableCard}`}
+                                    onClick={() => setIsChatOpen(!isChatOpen)}
+                                    whileHover={{ scale: 1.05 }}
+                                    whileTap={{ scale: 0.98 }}
+                                    title="Click to chat with FreshBot!"
+                                >
+                                    <span className={styles.cardIcon}>🤖</span>
+                                    <span className={styles.chatHint}>Click to chat!</span>
+                                </motion.div>
                             </div>
-                            <div className={`${styles.demoCard} ${styles.card2}`}>
-                                <span className={styles.cardIcon}>☁️</span>
-                                <span className={styles.cardTitle}>Cloud</span>
-                            </div>
-                            <div className={`${styles.demoCard} ${styles.card1}`}>
-                                <span className={styles.cardIcon}>🤖</span>
-                                <span className={styles.cardTitle}>AI</span>
-                            </div>
+                            <ChatBot isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} />
                         </div>
                     </motion.div>
 

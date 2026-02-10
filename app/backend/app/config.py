@@ -1,6 +1,6 @@
 """Application configuration settings."""
 from pydantic import AliasChoices, Field
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 from functools import lru_cache
 
 
@@ -32,11 +32,20 @@ class Settings(BaseSettings):
     admin_entra_ids: list[str] = []
     admin_emails: list[str] = []
     admin_email: str = ""
+    first_superuser_password: str = "FreshMinds2026!"
     
-    class Config:
-        env_file = ".env"
-        case_sensitive = False
-        extra = "ignore"
+    # AI Configuration (Azure OpenAI)
+    azure_openai_api_key: str = ""
+    azure_openai_endpoint: str = ""
+    azure_openai_deployment: str = "gpt-4.1-mini"
+    azure_openai_api_version: str = "2025-04-14"
+    ai_max_tokens: int = 500
+
+    model_config = SettingsConfigDict(
+        env_file = ".env",
+        case_sensitive = False,
+        extra = "ignore",
+    )
 
 
 @lru_cache()

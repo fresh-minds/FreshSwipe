@@ -21,6 +21,8 @@ jobs:
           DB_ADMIN_PASS: ${{ secrets.DB_ADMIN_PASS }}
           ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
           NEXTAUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET }}
+          AZURE_OPENAI_API_KEY: ${{ secrets.AZURE_OPENAI_API_KEY }}
+          AZURE_OPENAI_ENDPOINT: ${{ secrets.AZURE_OPENAI_ENDPOINT }}
           # Use existing env vars or defaults
           DB_ENGINE: azure-sql 
         run: |

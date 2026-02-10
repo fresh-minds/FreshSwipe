@@ -33,6 +33,35 @@
     height: 340px;
 }
 
+.cardStackWrapper {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 2rem;
+}
+
+.clickableCard {
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.clickableCard:hover {
+    box-shadow: 0 8px 32px rgba(47, 69, 194, 0.3);
+    border-color: var(--primary);
+}
+
+.chatHint {
+    font-size: 0.75rem;
+    color: var(--primary);
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    margin-top: 0.5rem;
+}
+
+.clickableCard:hover .chatHint {
+    opacity: 1;
+}
+
 .demoCard {
     position: absolute;
     width: 100%;
@@ -69,7 +98,7 @@
 }
 
 .cardIcon {
-    font-size: 4rem;
+    font-size: 4.2rem;
 }
 
 .cardTitle {
