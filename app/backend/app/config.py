@@ -38,7 +38,7 @@ class Settings(BaseSettings):
     azure_openai_api_key: str = ""
     azure_openai_endpoint: str = ""
     azure_openai_deployment: str = "gpt-4.1-mini"
-    azure_openai_api_version: str = "2024-02-15-preview"
+    azure_openai_api_version: str = "2025-04-14"
     ai_max_tokens: int = 500
 
     model_config = SettingsConfigDict(

@@ -277,3 +277,65 @@
         font-size: 1.5rem;
     }
 }
+.card {
+    /* Existing styles... ensure overflow is hidden if not already */
+    overflow: hidden;
+}
+
+.skillsOverlay {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    background: rgba(255, 255, 255, 0.98);
+    padding: 1.5rem;
+    transform: translateY(100%);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    border-top: 1px solid var(--border-color);
+    max-height: 70%;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.card:hover .skillsOverlay {
+    transform: translateY(0);
+}
+
+/* Ensure overlay is visible on touch devices if tapped? 
+   Or provide a button? User asked for hover. 
+   On mobile hover is tricky, maybe add a 'info' button later. 
+   For now, strictly valid CSS hover. */
+
+.skillsSection h4 {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin-bottom: 0.5rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.skillTags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.skillTag {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.75rem;
+    background: var(--bg-secondary);
+    border-radius: 1rem;
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+    font-weight: 500;
+}
+
+.growthTag {
+    border-color: var(--secondary);
+    background: rgba(245, 158, 11, 0.1); /* FreshMinds Orange/Secondary tint */
+    color: var(--secondary-dark);
+}

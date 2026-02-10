@@ -77,11 +77,9 @@ export default function Home() {
                             <div className={styles.cardStack}>
                                 <div className={`${styles.demoCard} ${styles.card3}`}>
                                     <span className={styles.cardIcon}>🔒</span>
-                                    <span className={styles.cardTitle}>Security</span>
                                 </div>
                                 <div className={`${styles.demoCard} ${styles.card2}`}>
                                     <span className={styles.cardIcon}>☁️</span>
-                                    <span className={styles.cardTitle}>Cloud</span>
                                 </div>
                                 <motion.div
                                     className={`${styles.demoCard} ${styles.card1} ${styles.clickableCard}`}
@@ -91,7 +89,6 @@ export default function Home() {
                                     title="Click to chat with FreshBot!"
                                 >
                                     <span className={styles.cardIcon}>🤖</span>
-                                    <span className={styles.cardTitle}>AI</span>
                                     <span className={styles.chatHint}>Click to chat!</span>
                                 </motion.div>
                             </div>

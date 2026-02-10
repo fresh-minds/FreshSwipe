@@ -230,7 +230,7 @@ async def list_users(
     return result.scalars().all()
 
 
-@router.get("/candidates", response_model=list[UserResponse])
+@router.get("/candidates", response_model=list[UserWithSkills])
 async def get_candidates(
     limit: int = Query(20, ge=1, le=50),
     db: AsyncSession = Depends(get_db),
@@ -246,12 +246,45 @@ async def get_candidates(
     # 3. Is searchable
     result = await db.execute(
         select(User)
+        .options(selectinload(User.skills).selectinload(UserSkill.skill))
         .where(User.id != current_user.id)
         .where(User.id.not_in(subquery))
         .where(User.is_searchable == True)
         .limit(limit)
     )
-    return result.scalars().all()
+    users = result.scalars().all()
+
+    response = []
+    for user in users:
+        current_skills = []
+        growth_skills = []
+        
+        for us in user.skills:
+            skill_response = UserSkillResponse(
+                id=us.id,
+                skill_id=us.skill_id,
+                skill_type=us.skill_type,
+                skill_name=us.skill.name if us.skill else None,
+            )
+            if us.skill_type == SkillType.CURRENT:
+                current_skills.append(skill_response)
+            else:
+                growth_skills.append(skill_response)
+        
+        response.append(UserWithSkills(
+            id=user.id,
+            name=user.name,
+            email=user.email,
+            unit=user.unit,
+            created_at=user.created_at,
+            updated_at=user.updated_at,
+            seniority=user.seniority,
+            availability=user.availability,
+            current_skills=current_skills,
+            growth_skills=growth_skills,
+        ))
+    
+    return response
 
 
 @router.get("/{user_id}", response_model=UserWithSkills)

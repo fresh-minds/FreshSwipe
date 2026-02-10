@@ -1,8 +1,7 @@
 """Swipes API endpoints."""
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
-from sqlalchemy.orm import selectinload
+from sqlalchemy import select, delete, or_
 
 from app.database import get_db
 from app.api.deps import get_current_user, is_admin_user
@@ -188,3 +187,30 @@ async def get_user_interests(user_id: str, db: AsyncSession = Depends(get_db)):
         )
         for s in swipes
     ]
+
+
+@router.delete("/", status_code=status.HTTP_204_NO_CONTENT)
+async def reset_swipes(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Reset all swipes and matches for the current user."""
+    real_user_id = current_user.id
+
+    # 1. Delete all swipes made by this user
+    await db.execute(
+        delete(Swipe).where(Swipe.user_id == real_user_id)
+    )
+
+    # 2. Delete all matches involving this user
+    await db.execute(
+        delete(Match).where(
+            or_(
+                Match.user_a_id == real_user_id,
+                Match.user_b_id == real_user_id
+            )
+        )
+    )
+
+    await db.commit()
+    return None

@@ -330,6 +330,9 @@ az keyvault secret set --vault-name "$KV_NAME" --name "NEXTAUTH-SECRET" --value 
 if [ -n "$DATABASE_URL" ]; then
     az keyvault secret set --vault-name "$KV_NAME" --name "DATABASE-URL" --value "$DATABASE_URL" > /dev/null
 fi
+if [ -n "$AZURE_OPENAI_API_KEY" ]; then
+    az keyvault secret set --vault-name "$KV_NAME" --name "AZURE-OPENAI-API-KEY" --value "$AZURE_OPENAI_API_KEY" > /dev/null
+fi
 
 
 # 8e. Configure App Settings (Referencing Key Vault)
@@ -359,6 +362,14 @@ SETTINGS=(
     # Feature Flags
     "SEED_ON_STARTUP=true"
 )
+
+# Add Azure OpenAI settings if configured
+if [ -n "$AZURE_OPENAI_API_KEY" ]; then
+    SETTINGS+=("AZURE_OPENAI_API_KEY=@Microsoft.KeyVault(SecretUri=https://$KV_NAME.vault.azure.net/secrets/AZURE-OPENAI-API-KEY)")
+fi
+if [ -n "$AZURE_OPENAI_ENDPOINT" ]; then
+    SETTINGS+=("AZURE_OPENAI_ENDPOINT=$AZURE_OPENAI_ENDPOINT")
+fi
 
 if [ -n "$DATABASE_URL" ]; then
     SETTINGS+=("DATABASE_URL=@Microsoft.KeyVault(SecretUri=https://$KV_NAME.vault.azure.net/secrets/DATABASE-URL)")

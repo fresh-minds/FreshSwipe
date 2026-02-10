@@ -93,6 +93,10 @@ async function fetchAPI<T>(endpoint: string, options?: RequestInit): Promise<T> 
         throw new Error(error.detail || `API error: ${res.status} on ${endpoint}`);
     }
 
+    if (res.status === 204) {
+        return {} as T;
+    }
+
     return res.json();
 }
 
@@ -125,7 +129,7 @@ export const usersApi = {
     list: (accessToken?: string) => fetchAPI<User[]>('/users/', {
         headers: authHeaders(accessToken),
     }),
-    getCandidates: (accessToken?: string) => fetchAPI<User[]>('/users/candidates', {
+    getCandidates: (accessToken?: string) => fetchAPI<UserWithSkills[]>('/users/candidates', {
         headers: authHeaders(accessToken),
     }),
 };
@@ -144,6 +148,11 @@ export const swipesApi = {
         }),
     getUserInterests: (userId: string, accessToken?: string) =>
         fetchAPI<Swipe[]>(`/swipes/user/${userId}/interests`, {
+            headers: authHeaders(accessToken),
+        }),
+    reset: (accessToken?: string) =>
+        fetchAPI<void>('/swipes/', {
+            method: 'DELETE',
             headers: authHeaders(accessToken),
         }),
 };

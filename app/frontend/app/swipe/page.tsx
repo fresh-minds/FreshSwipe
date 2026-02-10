@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { motion, useMotionValue, useTransform, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
 import Image from 'next/image';
-import { swipesApi, usersApi, User } from '@/lib/api';
+import { swipesApi, usersApi, User, UserWithSkills } from '@/lib/api';
 import styles from './swipe.module.css';
 
 type SwipeDirection = 'left' | 'right' | 'super';
@@ -14,7 +14,7 @@ type SwipeDirection = 'left' | 'right' | 'super';
 export default function SwipePage() {
     const router = useRouter();
     const { data: session, status } = useSession();
-    const [candidates, setCandidates] = useState<User[]>([]);
+    const [candidates, setCandidates] = useState<UserWithSkills[]>([]);
     const [currentIndex, setCurrentIndex] = useState(0);
     const [isLoading, setIsLoading] = useState(true);
     const [swipeHistory, setSwipeHistory] = useState<{ user: User; direction: SwipeDirection }[]>([]);
@@ -163,6 +163,21 @@ export default function SwipePage() {
         recordSwipe(direction);
     };
 
+    const handleReset = async () => {
+        if (!confirm('Are you sure you want to reset all your swipes and matches? This cannot be undone.')) {
+            return;
+        }
+
+        try {
+            await swipesApi.reset(authToken);
+            // Reload page to fetch candidates again
+            window.location.reload();
+        } catch (err) {
+            console.error('Failed to reset swipes:', err);
+            alert('Failed to reset swipes. Please try again.');
+        }
+    };
+
     const currentCandidate = candidates[currentIndex];
     const nextCandidate = candidates[currentIndex + 1];
 
@@ -227,17 +242,34 @@ export default function SwipePage() {
                         <Link href="/matches" className="btn btn-primary btn-lg mt-xl">
                             View My Matches →
                         </Link>
+
+                        <div className="mt-4">
+                            <button
+                                onClick={handleReset}
+                                className="btn btn-danger mt-4"
+                            >
+                                Reset Swipes & Start Over
+                            </button>
+                        </div>
                     </motion.div>
                 ) : !currentCandidate ? (
                     <div style={{ textAlign: 'center', marginTop: '4rem' }}>
                         <h3>No more profiles</h3>
                         <p>Check back later for new colleagues!</p>
-                        <button
-                            onClick={() => window.location.reload()}
-                            className="btn btn-secondary mt-md"
-                        >
-                            Refresh
-                        </button>
+                        <div className="flex flex-col gap-2 mt-md">
+                            <button
+                                onClick={() => window.location.reload()}
+                                className="btn btn-secondary"
+                            >
+                                Refresh
+                            </button>
+                            <button
+                                onClick={handleReset}
+                                className="btn btn-danger mt-2"
+                            >
+                                Reset Swipes & Start Over
+                            </button>
+                        </div>
                     </div>
                 ) : (
                     <>
@@ -302,6 +334,30 @@ export default function SwipePage() {
                                         {currentCandidate.seniority && (
                                             <p className={styles.cardDescription}>{currentCandidate.seniority}</p>
                                         )}
+
+                                        <div className={styles.skillsOverlay}>
+                                            {currentCandidate.current_skills && currentCandidate.current_skills.length > 0 && (
+                                                <div className={styles.skillsSection}>
+                                                    <h4>Skills</h4>
+                                                    <div className={styles.skillTags}>
+                                                        {currentCandidate.current_skills.map(s => (
+                                                            <span key={s.id} className={styles.skillTag}>{s.skill_name}</span>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {currentCandidate.growth_skills && currentCandidate.growth_skills.length > 0 && (
+                                                <div className={styles.skillsSection}>
+                                                    <h4>Growth</h4>
+                                                    <div className={styles.skillTags}>
+                                                        {currentCandidate.growth_skills.map(s => (
+                                                            <span key={s.id} className={`${styles.skillTag} ${styles.growthTag}`}>{s.skill_name}</span>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
                                 </motion.div>
                             </AnimatePresence>
@@ -338,6 +394,6 @@ export default function SwipePage() {
                     </>
                 )}
             </main>
-        </div>
+        </div >
     );
 }
