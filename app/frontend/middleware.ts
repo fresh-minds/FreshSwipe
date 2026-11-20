@@ -11,10 +11,12 @@ export const config = {
         "/",
         "/swipe/:path*",
         "/matches/:path*",
+        "/coffee-dates/:path*",
         "/profile/:path*",
         "/insights/:path*",
         "/feedback/:path*",
         "/team-trends/:path*",
         "/onboarding/:path*",
+        "/admin/:path*",
     ],
 };

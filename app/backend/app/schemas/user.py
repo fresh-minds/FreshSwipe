@@ -35,8 +35,10 @@ class UserOnboarding(BaseModel):
     """Schema for complete user onboarding."""
     entra_oid: Optional[str] = None
     name: str
-    email: EmailStr
+    email: Optional[EmailStr] = None
     unit: UnitType
+    seniority: Optional[str] = None
+    availability: Optional[str] = None
     current_skills: list[UUID] = []
     growth_skills: list[UUID] = []
 
@@ -60,7 +62,7 @@ class UserResponse(BaseModel):
     id: UUID
     entra_oid: Optional[str] = None
     name: str
-    email: str
+    email: Optional[str] = None
     unit: UnitType
     seniority: Optional[str] = None
     availability: Optional[str] = None
@@ -68,6 +70,7 @@ class UserResponse(BaseModel):
     offering: list[str] = []
     is_searchable: bool = True
     show_email: bool = True
+    is_admin: bool = False
     created_at: datetime
     updated_at: datetime
     

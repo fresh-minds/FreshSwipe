@@ -3,9 +3,25 @@
     align-items: center;
     justify-content: center;
     min-height: 100vh;
-    background: var(--bg-secondary);
-    background-image: var(--bg-dots);
+    background-color: var(--bg-secondary);
     padding: 20px;
+}
+
+.logoWrap {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 12px;
+}
+
+.errorBanner {
+    margin-bottom: 16px;
+    padding: 12px 14px;
+    border-radius: var(--radius-md);
+    background: rgba(239, 68, 68, 0.08);
+    border: 1px solid rgba(239, 68, 68, 0.35);
+    color: #b91c1c;
+    font-size: 0.9rem;
+    text-align: left;
 }
 
 .card {

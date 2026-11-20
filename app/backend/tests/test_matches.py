@@ -51,9 +51,15 @@ class TestMatchesAPI:
         assert isinstance(data, list)
     
     @pytest.mark.asyncio
-    async def test_get_matches_stats(self, authenticated_client: AsyncClient):
-        """Test getting match statistics."""
+    async def test_get_matches_stats_forbidden_for_non_admin(self, authenticated_client: AsyncClient):
+        """Test match statistics require admin access."""
         response = await authenticated_client.get("/api/v1/matches/stats")
+        assert response.status_code == 403
+
+    @pytest.mark.asyncio
+    async def test_get_matches_stats(self, admin_client: AsyncClient):
+        """Test getting match statistics as admin."""
+        response = await admin_client.get("/api/v1/matches/stats")
         assert response.status_code == 200
         data = response.json()
         assert "total_matches_generated" in data

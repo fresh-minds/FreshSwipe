@@ -1,3 +1,5 @@
+'use client';
+
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import styles from './ChatBot.module.css';
@@ -12,9 +14,27 @@ interface Message {
 interface ChatBotProps {
     isOpen: boolean;
     onClose: () => void;
+    floating?: boolean;
 }
 
-export function ChatBot({ isOpen, onClose }: ChatBotProps) {
+const STARTER_PROMPTS = [
+    'Who knows Kubernetes or Azure?',
+    'Who in Data wants to learn GenAI?',
+    'Who is available weekly for coffee?',
+];
+
+function renderFormattedText(text: string) {
+    // Render **bold** segments safely without dangerouslySetInnerHTML
+    const parts = text.split(/(\*\*[^*]+\*\*)/g);
+    return parts.map((part, idx) => {
+        if (part.startsWith('**') && part.endsWith('**') && part.length > 4) {
+            return <strong key={idx}>{part.slice(2, -2)}</strong>;
+        }
+        return <span key={idx}>{part}</span>;
+    });
+}
+
+export function ChatBot({ isOpen, onClose, floating = false }: ChatBotProps) {
     const [messages, setMessages] = useState<Message[]>([
         {
             id: 'welcome',
@@ -35,15 +55,33 @@ export function ChatBot({ isOpen, onClose }: ChatBotProps) {
         scrollToBottom();
     }, [messages, isTyping, isOpen]);
 
-    const handleSend = async () => {
-        if (!input.trim()) return;
+    useEffect(() => {
+        if (!isOpen) return;
+        const onKeyDown = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') onClose();
+        };
+        window.addEventListener('keydown', onKeyDown);
+        return () => window.removeEventListener('keydown', onKeyDown);
+    }, [isOpen, onClose]);
+
+    const sendMessage = async (textToSend: string) => {
+        const trimmed = textToSend.trim();
+        if (!trimmed || isTyping) return;
 
         const userMessage: Message = {
             id: Date.now().toString(),
             role: 'user',
-            content: input,
+            content: trimmed,
             timestamp: Date.now()
         };
+
+        const history = messages
+            .filter((m) => m.id !== 'welcome')
+            .slice(-10)
+            .map((m) => ({
+                role: m.role === 'user' ? 'user' : 'assistant',
+                content: m.content,
+            }));
 
         setMessages(prev => [...prev, userMessage]);
         setInput('');
@@ -53,17 +91,23 @@ export function ChatBot({ isOpen, onClose }: ChatBotProps) {
             const response = await fetch('/api/chat', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ message: userMessage.content })
+                body: JSON.stringify({
+                    message: trimmed,
+                    history,
+                })
             });
 
-            if (!response.ok) throw new Error('Failed to get response');
+            if (!response.ok) {
+                const errPayload = await response.json().catch(() => null);
+                throw new Error(errPayload?.detail || errPayload?.error || 'Failed to get response');
+            }
 
             const data = await response.json();
 
             const botMessage: Message = {
                 id: (Date.now() + 1).toString(),
                 role: 'bot',
-                content: data.response,
+                content: data.response || "I couldn't generate a response. Please try again.",
                 timestamp: Date.now()
             };
 
@@ -73,7 +117,9 @@ export function ChatBot({ isOpen, onClose }: ChatBotProps) {
             const errorMessage: Message = {
                 id: (Date.now() + 1).toString(),
                 role: 'bot',
-                content: "Sorry, I'm having trouble connecting right now. Please try again later.",
+                content: error instanceof Error && error.message !== 'Failed to get response'
+                    ? error.message
+                    : "Sorry, I'm having trouble connecting right now. Please try again later.",
                 timestamp: Date.now()
             };
             setMessages(prev => [...prev, errorMessage]);
@@ -82,22 +128,27 @@ export function ChatBot({ isOpen, onClose }: ChatBotProps) {
         }
     };
 
+    const showStarters = messages.length === 1 && !isTyping;
+
     return (
         <AnimatePresence>
             {isOpen && (
                 <motion.div
-                    initial={{ opacity: 0, x: -20, scale: 0.95 }}
-                    animate={{ opacity: 1, x: 0, scale: 1 }}
-                    exit={{ opacity: 0, x: -20, scale: 0.95 }}
+                    role="dialog"
+                    aria-label="FreshBot colleague assistant"
+                    initial={{ opacity: 0, y: floating ? 16 : 0, x: floating ? 0 : -20, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, x: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: floating ? 16 : 0, x: floating ? 0 : -20, scale: 0.95 }}
                     transition={{ duration: 0.2 }}
-                    className={styles.chatWindow}
+                    className={`${styles.chatWindow} ${floating ? styles.floatingWindow : ''}`}
                 >
                     <div className={styles.header}>
                         <div className={styles.headerTitle}>
-                            <span className={styles.robotIcon}>🤖</span>
+                            <span className={styles.robotIcon} aria-hidden="true">🤖</span>
                             FreshBot
                         </div>
                         <button
+                            type="button"
                             className={styles.closeButton}
                             onClick={onClose}
                             aria-label="Close chat"
@@ -110,14 +161,29 @@ export function ChatBot({ isOpen, onClose }: ChatBotProps) {
                         {messages.map((msg) => (
                             <div
                                 key={msg.id}
-                                className={`${styles.message} ${msg.role === 'user' ? styles.userMessage : styles.botMessage
-                                    }`}
+                                className={`${styles.message} ${msg.role === 'user' ? styles.userMessage : styles.botMessage}`}
                             >
-                                {msg.content}
+                                {renderFormattedText(msg.content)}
                             </div>
                         ))}
+
+                        {showStarters && (
+                            <div className={styles.starters}>
+                                {STARTER_PROMPTS.map((prompt) => (
+                                    <button
+                                        key={prompt}
+                                        type="button"
+                                        className={styles.starterChip}
+                                        onClick={() => sendMessage(prompt)}
+                                    >
+                                        {prompt}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+
                         {isTyping && (
-                            <div className={styles.typingIndicator}>
+                            <div className={styles.typingIndicator} aria-label="FreshBot is typing">
                                 <div className={styles.dot} />
                                 <div className={styles.dot} />
                                 <div className={styles.dot} />
@@ -132,13 +198,21 @@ export function ChatBot({ isOpen, onClose }: ChatBotProps) {
                             className={styles.input}
                             placeholder="Ask about colleagues..."
                             value={input}
+                            maxLength={1000}
                             onChange={(e) => setInput(e.target.value)}
-                            onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                    e.preventDefault();
+                                    sendMessage(input);
+                                }
+                            }}
                             disabled={isTyping}
+                            aria-label="Chat message"
                         />
                         <button
+                            type="button"
                             className={styles.sendButton}
-                            onClick={handleSend}
+                            onClick={() => sendMessage(input)}
                             disabled={!input.trim() || isTyping}
                             aria-label="Send message"
                         >
@@ -153,4 +227,3 @@ export function ChatBot({ isOpen, onClose }: ChatBotProps) {
         </AnimatePresence>
     );
 }
-

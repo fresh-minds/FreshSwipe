@@ -2,7 +2,7 @@
 import os
 import uuid
 from datetime import datetime, timezone
-from sqlalchemy import String, DateTime, ForeignKey, Float, JSON
+from sqlalchemy import String, DateTime, ForeignKey, Float, JSON, Index
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy import Uuid
 
@@ -20,6 +20,9 @@ class Match(Base):
     """Cached match results between two users."""
     
     __tablename__ = "matches"
+    __table_args__ = (
+        Index("ix_matches_user_a_type", "user_a_id", "match_type"),
+    )
     
     id: Mapped[uuid.UUID] = mapped_column(
         Uuid(as_uuid=True),
@@ -30,11 +33,13 @@ class Match(Base):
         Uuid(as_uuid=True),
         ForeignKey("users.id", ondelete=_user_fk_ondelete()),
         nullable=False,
+        index=True,
     )
     user_b_id: Mapped[uuid.UUID] = mapped_column(
         Uuid(as_uuid=True),
         ForeignKey("users.id", ondelete=_user_fk_ondelete()),
         nullable=False,
+        index=True,
     )
     score: Mapped[float] = mapped_column(Float, nullable=False)
     reasons: Mapped[list[str]] = mapped_column(JSON, nullable=False)

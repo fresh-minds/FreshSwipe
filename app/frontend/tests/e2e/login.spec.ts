@@ -3,7 +3,7 @@ import { test, expect } from '@playwright/test';
 test('login page loads and Microsoft sign-in redirects to Entra ID', async ({ page }) => {
   await page.goto('/login', { waitUntil: 'domcontentloaded' });
 
-  await expect(page.getByText('FreshSwipe v2')).toBeVisible();
+  await expect(page.getByRole('heading', { name: /FreshSwipe/i })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Sign in with Microsoft' })).toBeVisible();
 
   await page.getByRole('button', { name: 'Sign in with Microsoft' }).click();

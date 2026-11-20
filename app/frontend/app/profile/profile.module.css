@@ -97,9 +97,32 @@
     border-radius: var(--radius-lg);
 }
 
-.toggleField span {
+.toggleField span,
+.toggleText {
     font-size: 0.9375rem;
     color: var(--text-secondary);
+    cursor: pointer;
+}
+
+.errorBanner,
+.successBanner {
+    padding: 0.85rem 1rem;
+    border-radius: var(--radius-md);
+    margin-bottom: var(--space-lg);
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+.errorBanner {
+    background: rgba(239, 68, 68, 0.08);
+    border: 1px solid rgba(239, 68, 68, 0.35);
+    color: #b91c1c;
+}
+
+.successBanner {
+    background: rgba(16, 185, 129, 0.1);
+    border: 1px solid rgba(16, 185, 129, 0.35);
+    color: #065f46;
 }
 
 /* Toggle Switch */

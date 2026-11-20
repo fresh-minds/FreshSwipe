@@ -1,7 +1,7 @@
 """Analytics API endpoints."""
 from uuid import UUID
 from typing import Optional
-from fastapi import APIRouter, Depends, Query, HTTPException
+from fastapi import APIRouter, Depends, Query, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, case
 
@@ -35,21 +35,44 @@ async def get_user_summary(
     
     swipe_counts = {row.direction.value: row.count for row in result.all()}
     
-    # Get top interests (GROWTH skills)
+    # Count searchable colleagues who can mentor each skill (CURRENT skill supply excluding self)
+    mentor_subquery = (
+        select(
+            UserSkill.skill_id,
+            func.count(func.distinct(UserSkill.user_id)).label("mentor_count"),
+        )
+        .join(User, User.id == UserSkill.user_id)
+        .where(
+            UserSkill.skill_type == SkillType.CURRENT,
+            User.is_searchable == True,
+            User.id != user_id,
+        )
+        .group_by(UserSkill.skill_id)
+        .subquery()
+    )
+
+    # Get top interests (GROWTH skills) alongside available mentors count
     interests_result = await db.execute(
-        select(Skill.name, Skill.category)
+        select(
+            Skill.name,
+            Skill.category,
+            func.coalesce(mentor_subquery.c.mentor_count, 0).label("mentor_count"),
+        )
         .join(UserSkill, UserSkill.skill_id == Skill.id)
+        .outerjoin(mentor_subquery, Skill.id == mentor_subquery.c.skill_id)
         .where(
             UserSkill.user_id == user_id,
-            UserSkill.skill_type == SkillType.GROWTH
+            UserSkill.skill_type == SkillType.GROWTH,
         )
+        .order_by(func.coalesce(mentor_subquery.c.mentor_count, 0).desc(), Skill.name)
     )
     
     interests = [
         {
             "name": row.name,
             "category": row.category,
-            "is_super": False, # Concept doesn't apply to own skills
+            "is_super": False,
+            "mentor_count": row.mentor_count,
         }
         for row in interests_result.all()
     ]
@@ -63,7 +86,7 @@ async def get_user_summary(
         .join(UserSkill, UserSkill.skill_id == Skill.id)
         .where(
             UserSkill.user_id == user_id,
-            UserSkill.skill_type == SkillType.GROWTH
+            UserSkill.skill_type == SkillType.GROWTH,
         )
         .group_by(Skill.category)
     )
@@ -90,25 +113,25 @@ async def get_organization_skill_stats(
     if not is_admin_user(current_user):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required")
     # Demand (Growth Skills)
-    growth_subquery = (
+    growth_query = (
         select(Skill.id, func.count(UserSkill.id).label("growth_count"))
         .join(UserSkill, UserSkill.skill_id == Skill.id)
         .where(UserSkill.skill_type == SkillType.GROWTH)
-        .group_by(Skill.id)
-        .subquery()
     )
+    if unit:
+        growth_query = growth_query.join(User, User.id == UserSkill.user_id).where(User.unit == unit)
+    growth_subquery = growth_query.group_by(Skill.id).subquery()
 
     # Supply (Current Skills)
-    current_subquery = (
+    current_query = (
         select(Skill.id, func.count(UserSkill.id).label("current_count"))
         .join(UserSkill, UserSkill.skill_id == Skill.id)
         .where(UserSkill.skill_type == SkillType.CURRENT)
-        .group_by(Skill.id)
-        .subquery()
     )
+    if unit:
+        current_query = current_query.join(User, User.id == UserSkill.user_id).where(User.unit == unit)
+    current_subquery = current_query.group_by(Skill.id).subquery()
     
-    # Filter by unit if specified (This requires joining User, slightly more complex, 
-    # skipping unit filter for now for simplicity or simple join)
     query = (
         select(
             Skill.id,
@@ -119,12 +142,8 @@ async def get_organization_skill_stats(
         )
         .outerjoin(growth_subquery, Skill.id == growth_subquery.c.id)
         .outerjoin(current_subquery, Skill.id == current_subquery.c.id)
+        .order_by(func.coalesce(growth_subquery.c.growth_count, 0).desc(), Skill.name)
     )
-    
-    # Simple unit filtering would need to happen inside the subqueries
-    if unit:
-        # Re-implementing with full joins for unit filtering
-        pass # Keeping logic simple for now as per previous implementation style
 
     result = await db.execute(query)
     
@@ -137,10 +156,12 @@ async def get_organization_skill_stats(
             "id": str(row.id),
             "name": row.name,
             "category": row.category,
-            "total_swipes": total, # Legacy field name for frontend compatibility
-            "right_swipes": demand, # Maps to Interest/Growth
-            "super_swipes": 0, # Concept removed
-            "left_swipes": supply, # Maps to Supply/Current
+            "demand": demand,
+            "supply": supply,
+            "total_swipes": total,  # Legacy field name for compatibility
+            "right_swipes": demand,  # Maps to Interest/Growth
+            "super_swipes": 0,  # Concept removed
+            "left_swipes": supply,  # Maps to Supply/Current
             "interest_rate": round(demand / total * 100, 1) if total > 0 else 0,
         })
     
@@ -163,7 +184,7 @@ async def get_unit_distribution(
         .group_by(User.unit)
     )
     
-    return {row.unit.value: row.count for row in result.all()}
+    return {(row.unit.value if row.unit else "Unknown"): row.count for row in result.all()}
 
 
 @router.get("/organization/trends")

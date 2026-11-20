@@ -2,7 +2,7 @@
 from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, delete
+from sqlalchemy import select, delete, func
 from sqlalchemy.orm import selectinload
 from sqlalchemy.exc import IntegrityError
 
@@ -26,24 +26,15 @@ from app.schemas.user import (
 router = APIRouter(prefix="/users", tags=["users"])
 
 
-@router.get("/me", response_model=UserWithSkills)
-async def get_me(
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user)
-):
-    """Get current user profile with skills."""
-    # We need to reload user with skills to ensure they are fetched
-    result = await db.execute(
-        select(User)
-        .options(selectinload(User.skills).selectinload(UserSkill.skill))
-        .where(User.id == current_user.id)
-    )
-    user = result.scalar_one_or_none()
-    
-    # Build response with skills
+def _build_user_with_skills(
+    user: User,
+    *,
+    include_email: bool,
+    is_admin: bool = False,
+) -> UserWithSkills:
     current_skills = []
     growth_skills = []
-    
+
     for us in user.skills:
         skill_response = UserSkillResponse(
             id=us.id,
@@ -55,23 +46,46 @@ async def get_me(
             current_skills.append(skill_response)
         else:
             growth_skills.append(skill_response)
-            
+
     return UserWithSkills(
         id=user.id,
         entra_oid=user.entra_oid,
         name=user.name,
-        email=user.email,
+        email=user.email if include_email else None,
         unit=user.unit,
         seniority=user.seniority,
         availability=user.availability,
-        looking_for=user.looking_for,
-        offering=user.offering,
+        looking_for=user.looking_for or [],
+        offering=user.offering or [],
         is_searchable=user.is_searchable,
         show_email=user.show_email,
+        is_admin=is_admin,
         created_at=user.created_at,
         updated_at=user.updated_at,
         current_skills=current_skills,
         growth_skills=growth_skills,
+    )
+
+
+@router.get("/me", response_model=UserWithSkills)
+async def get_me(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Get current user profile with skills."""
+    result = await db.execute(
+        select(User)
+        .options(selectinload(User.skills).selectinload(UserSkill.skill))
+        .where(User.id == current_user.id)
+    )
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+    return _build_user_with_skills(
+        user,
+        include_email=True,
+        is_admin=is_admin_user(user),
     )
 
 
@@ -82,25 +96,19 @@ async def update_me(
     current_user: User = Depends(get_current_user)
 ):
     """Update current user profile."""
-    # Update basic fields
     for field, value in user_update.model_dump(exclude_unset=True).items():
         if field not in ['current_skills', 'growth_skills']:
             setattr(current_user, field, value)
     
     # Update Current Skills
     if user_update.current_skills is not None:
-        # Delete existing current skills
         await db.execute(
             delete(UserSkill).where(
                 UserSkill.user_id == current_user.id,
                 UserSkill.skill_type == SkillType.CURRENT
             )
         )
-        # Verify db.commit is not needed here if we flush later?
-        # Actually standard practice is delete -> flush/add -> commit
-        
-        # Add new current skills
-        for skill_id in user_update.current_skills:
+        for skill_id in dict.fromkeys(user_update.current_skills):
             db.add(UserSkill(
                 user_id=current_user.id,
                 skill_id=skill_id,
@@ -109,16 +117,13 @@ async def update_me(
 
     # Update Growth Skills
     if user_update.growth_skills is not None:
-        # Delete existing growth skills
         await db.execute(
             delete(UserSkill).where(
                 UserSkill.user_id == current_user.id,
                 UserSkill.skill_type == SkillType.GROWTH
             )
         )
-        
-        # Add new growth skills
-        for skill_id in user_update.growth_skills:
+        for skill_id in dict.fromkeys(user_update.growth_skills):
             db.add(UserSkill(
                 user_id=current_user.id,
                 skill_id=skill_id,
@@ -130,14 +135,40 @@ async def update_me(
 
     await db.commit()
     await db.refresh(current_user)
-    return current_user
+    return UserResponse(
+        id=current_user.id,
+        entra_oid=current_user.entra_oid,
+        name=current_user.name,
+        email=current_user.email,
+        unit=current_user.unit,
+        seniority=current_user.seniority,
+        availability=current_user.availability,
+        looking_for=current_user.looking_for or [],
+        offering=current_user.offering or [],
+        is_searchable=current_user.is_searchable,
+        show_email=current_user.show_email,
+        is_admin=is_admin_user(current_user),
+        created_at=current_user.created_at,
+        updated_at=current_user.updated_at,
+    )
 
 
 @router.post("/", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
-async def create_user(user_data: UserCreate, db: AsyncSession = Depends(get_db)):
-    """Create a new user."""
-    # Check if email already exists
-    result = await db.execute(select(User).where(User.email == user_data.email))
+async def create_user(
+    user_data: UserCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Create a new user (admin only)."""
+    if not is_admin_user(current_user):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin access required",
+        )
+    # Check if email already exists (case-insensitive)
+    result = await db.execute(
+        select(User).where(func.lower(User.email) == user_data.email.lower())
+    )
     if result.scalar_one_or_none():
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -152,36 +183,21 @@ async def create_user(user_data: UserCreate, db: AsyncSession = Depends(get_db))
 
 
 @router.post("/onboard", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
-async def onboard_user(onboarding: UserOnboarding, db: AsyncSession = Depends(get_db)):
-    """Complete user onboarding with skills. Updates existing user if email matches."""
-    # Check if email already exists
-    result = await db.execute(select(User).where(User.email == onboarding.email))
-    user = result.scalar_one_or_none()
-    
-    # If not found by email, try to find by OID
-    if not user and onboarding.entra_oid:
-         result = await db.execute(select(User).where(User.entra_oid == onboarding.entra_oid))
-         user = result.scalar_one_or_none()
-    
-    if user:
-        # Update existing user details
-        user.name = onboarding.name
-        user.email = onboarding.email # Ensure email is updated if we found by OID
-        user.unit = onboarding.unit
-        if onboarding.entra_oid:
-             user.entra_oid = onboarding.entra_oid
-        
-        # Clear existing skills to replace them
-        await db.execute(delete(UserSkill).where(UserSkill.user_id == user.id))
-    else:
-        # Create new user
-        user = User(
-            entra_oid=onboarding.entra_oid,
-            name=onboarding.name,
-            email=onboarding.email,
-            unit=onboarding.unit,
-        )
-        db.add(user)
+async def onboard_user(
+    onboarding: UserOnboarding,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Complete onboarding for the currently authenticated user."""
+    current_user.name = onboarding.name
+    current_user.unit = onboarding.unit
+    if onboarding.seniority is not None:
+        current_user.seniority = onboarding.seniority
+    if onboarding.availability is not None:
+        current_user.availability = onboarding.availability
+
+    # Clear existing skills to replace them
+    await db.execute(delete(UserSkill).where(UserSkill.user_id == current_user.id))
     
     try:
         await db.flush()
@@ -189,33 +205,46 @@ async def onboard_user(onboarding: UserOnboarding, db: AsyncSession = Depends(ge
         await db.rollback()
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="User with this email or ID already exists",
+            detail="Unable to update user profile due to a conflict",
         )
     
-    # Add current skills
-    for skill_id in onboarding.current_skills:
-        user_skill = UserSkill(
-            user_id=user.id,
+    # Add deduplicated current skills
+    for skill_id in dict.fromkeys(onboarding.current_skills):
+        db.add(UserSkill(
+            user_id=current_user.id,
             skill_id=skill_id,
             skill_type=SkillType.CURRENT,
-        )
-        db.add(user_skill)
+        ))
     
-    # Add growth skills
-    for skill_id in onboarding.growth_skills:
-        user_skill = UserSkill(
-            user_id=user.id,
+    # Add deduplicated growth skills
+    for skill_id in dict.fromkeys(onboarding.growth_skills):
+        db.add(UserSkill(
+            user_id=current_user.id,
             skill_id=skill_id,
             skill_type=SkillType.GROWTH,
-        )
-        db.add(user_skill)
+        ))
     
-    # Invalidate match cache to ensure fresh matches for the new/updated user
-    await MatchingService.invalidate_cache(db, user.id)
+    # Invalidate match cache to ensure fresh matches for the updated user
+    await MatchingService.invalidate_cache(db, current_user.id)
 
-    await db.flush()
-    await db.refresh(user)
-    return user
+    await db.commit()
+    await db.refresh(current_user)
+    return UserResponse(
+        id=current_user.id,
+        entra_oid=current_user.entra_oid,
+        name=current_user.name,
+        email=current_user.email,
+        unit=current_user.unit,
+        seniority=current_user.seniority,
+        availability=current_user.availability,
+        looking_for=current_user.looking_for or [],
+        offering=current_user.offering or [],
+        is_searchable=current_user.is_searchable,
+        show_email=current_user.show_email,
+        is_admin=is_admin_user(current_user),
+        created_at=current_user.created_at,
+        updated_at=current_user.updated_at,
+    )
 
 
 @router.get("/", response_model=list[UserResponse])
@@ -261,37 +290,10 @@ async def get_candidates(
     )
     users = result.scalars().all()
 
-    response = []
-    for user in users:
-        current_skills = []
-        growth_skills = []
-        
-        for us in user.skills:
-            skill_response = UserSkillResponse(
-                id=us.id,
-                skill_id=us.skill_id,
-                skill_type=us.skill_type,
-                skill_name=us.skill.name if us.skill else None,
-            )
-            if us.skill_type == SkillType.CURRENT:
-                current_skills.append(skill_response)
-            else:
-                growth_skills.append(skill_response)
-        
-        response.append(UserWithSkills(
-            id=user.id,
-            name=user.name,
-            email=user.email,
-            unit=user.unit,
-            created_at=user.created_at,
-            updated_at=user.updated_at,
-            seniority=user.seniority,
-            availability=user.availability,
-            current_skills=current_skills,
-            growth_skills=growth_skills,
-        ))
-    
-    return response
+    return [
+        _build_user_with_skills(user, include_email=bool(user.show_email))
+        for user in users
+    ]
 
 
 @router.get("/{user_id}", response_model=UserWithSkills)
@@ -302,9 +304,6 @@ async def get_user(
 ):
     """Get a user by ID with their skills."""
     real_user_id = await resolve_user_id(db, user_id)
-    # Allow any authenticated user to view profiles (needed for matches/networking)
-    # if real_user_id != current_user.id and not is_admin_user(current_user):
-    #     raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
     
     result = await db.execute(
         select(User)
@@ -318,32 +317,18 @@ async def get_user(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="User not found",
         )
-    
-    # Build response with skills
-    current_skills = []
-    growth_skills = []
-    
-    for us in user.skills:
-        skill_response = UserSkillResponse(
-            id=us.id,
-            skill_id=us.skill_id,
-            skill_type=us.skill_type,
-            skill_name=us.skill.name if us.skill else None,
+
+    is_self_or_admin = user.id == current_user.id or is_admin_user(current_user)
+    if not user.is_searchable and not is_self_or_admin:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found",
         )
-        if us.skill_type == SkillType.CURRENT:
-            current_skills.append(skill_response)
-        else:
-            growth_skills.append(skill_response)
-    
-    return UserWithSkills(
-        id=user.id,
-        name=user.name,
-        email=user.email,
-        unit=user.unit,
-        created_at=user.created_at,
-        updated_at=user.updated_at,
-        current_skills=current_skills,
-        growth_skills=growth_skills,
+
+    return _build_user_with_skills(
+        user,
+        include_email=(is_self_or_admin or bool(user.show_email)),
+        is_admin=is_admin_user(user) if is_self_or_admin else False,
     )
 
 
@@ -356,7 +341,7 @@ async def get_user_by_email(
     """Get a user by email."""
     if email.lower() != (current_user.email or "").lower() and not is_admin_user(current_user):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
-    result = await db.execute(select(User).where(User.email == email))
+    result = await db.execute(select(User).where(func.lower(User.email) == email.lower()))
     user = result.scalar_one_or_none()
     
     if not user:

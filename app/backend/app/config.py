@@ -20,7 +20,7 @@ class Settings(BaseSettings):
     # Entra ID
     AZURE_ENTRA_AD_CLIENT_ID: str = Field(
         "",
-        validation_alias=AliasChoices("AZURE_ENTRA_AD_CLIENT_ID", "AZURE_ENTRA_AD_CLIENT_ID"),
+        validation_alias=AliasChoices("AZURE_ENTRA_AD_CLIENT_ID", "AZURE_AD_CLIENT_ID"),
     )
     AZURE_ENTRA_TENANT_ID: str = Field(
         "common",
@@ -32,7 +32,10 @@ class Settings(BaseSettings):
     admin_entra_ids: list[str] = []
     admin_emails: list[str] = []
     admin_email: str = ""
-    first_superuser_password: str = "FreshMinds2026!"
+    first_superuser_password: str = Field(
+        "",
+        validation_alias=AliasChoices("FIRST_SUPERUSER_PASSWORD", "ADMIN_PASSWORD"),
+    )
     
     # AI Configuration (Azure OpenAI)
     azure_openai_api_key: str = ""

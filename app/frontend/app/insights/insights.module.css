@@ -246,6 +246,13 @@
     color: var(--text-muted);
 }
 
+.mentorMeta {
+    margin-top: 0.4rem;
+    font-size: 0.8125rem;
+    color: var(--primary);
+    font-weight: 500;
+}
+
 .superInterest {
     background: linear-gradient(135deg, rgba(245, 158, 11, 0.08), rgba(245, 158, 11, 0.02));
     border-color: var(--super);

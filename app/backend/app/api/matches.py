@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 
 from app.database import get_db
-from app.api.deps import get_current_user
+from app.api.deps import get_current_user, is_admin_user
 from app.models.user import User
 from app.models.match import Match
 from app.models.swipe import Swipe
@@ -49,6 +49,11 @@ async def get_match_stats(
     current_user: User = Depends(get_current_user)
 ):
     """Admin analytics: match volume and participation."""
+    if not is_admin_user(current_user):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin access required",
+        )
     # Count active users (users who have swiped)
     active_users_result = await db.execute(
         select(func.count(func.distinct(Swipe.user_id)))

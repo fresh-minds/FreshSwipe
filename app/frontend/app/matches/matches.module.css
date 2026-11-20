@@ -2,6 +2,8 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
+    flex-wrap: wrap;
+    gap: var(--space-md);
     margin-bottom: var(--space-2xl);
     padding-bottom: var(--space-lg);
     border-bottom: 1px solid var(--border-color);
@@ -146,6 +148,9 @@
 
 .teamsButton {
     flex: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     padding: var(--space-sm) var(--space-md);
     font-size: 0.875rem;
     font-weight: 600;
@@ -156,6 +161,7 @@
     color: var(--text-secondary);
     cursor: pointer;
     transition: all var(--transition-fast);
+    text-align: center;
 }
 
 .teamsButton:hover {
@@ -163,13 +169,31 @@
     color: var(--primary);
 }
 
+.disabledAction {
+    opacity: 0.65;
+    cursor: default;
+}
+
+.disabledAction:hover {
+    border-color: var(--border-color);
+    color: var(--text-secondary);
+}
+
 .empty {
     grid-column: 1 / -1;
     text-align: center;
     padding: var(--space-3xl);
-    color: var(--text-muted);
+    color: var(--text-secondary);
     font-size: 1rem;
     background: var(--bg-card);
     border: 1px dashed var(--border-color);
     border-radius: var(--radius-xl);
+}
+
+.emptyActions {
+    margin-top: var(--space-lg);
+    display: flex;
+    justify-content: center;
+    gap: var(--space-md);
+    flex-wrap: wrap;
 }

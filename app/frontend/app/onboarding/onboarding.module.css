@@ -46,7 +46,7 @@
     background: var(--primary);
     border-color: var(--primary);
     color: white;
-    box-shadow: 0 0 15px rgba(99, 102, 241, 0.4);
+    box-shadow: 0 0 15px rgba(47, 69, 194, 0.35);
 }
 
 .progressStep.completed .stepNumber {
@@ -95,13 +95,40 @@
 
 .unitCard:hover {
     border-color: var(--primary);
-    background: rgba(99, 102, 241, 0.1);
+    background: rgba(47, 69, 194, 0.08);
 }
 
 .unitCard.selected {
     border-color: var(--primary);
-    background: rgba(99, 102, 241, 0.2);
-    box-shadow: 0 0 20px rgba(99, 102, 241, 0.3);
+    background: rgba(47, 69, 194, 0.14);
+    box-shadow: 0 0 20px rgba(47, 69, 194, 0.22);
+}
+
+.ssoBadge {
+    color: var(--primary);
+    margin-left: 8px;
+    font-size: 0.8em;
+    font-weight: 600;
+}
+
+.lockedInput {
+    background-color: var(--bg-tertiary) !important;
+    cursor: not-allowed;
+}
+
+.optionalRow {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin-top: 1.5rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid var(--border-color);
+}
+
+@media (max-width: 640px) {
+    .optionalRow {
+        grid-template-columns: 1fr;
+    }
 }
 
 .unitIcon {

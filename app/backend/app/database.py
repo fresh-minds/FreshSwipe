@@ -25,27 +25,35 @@ def _detect_db_engine(database_url: str) -> str:
 
 # Create async engine with optional SSL / driver-specific args
 connect_args: dict = {}
+engine_kwargs: dict = {
+    "echo": settings.debug,
+    "future": True,
+}
 db_engine = _detect_db_engine(settings.database_url)
 ssl_mode = os.getenv("DB_SSL", "").strip().lower()
 
-if db_engine in {"postgres", "postgresql"}:
-    if ssl_mode in {"1", "true", "require", "required"}:
-        connect_args["ssl"] = ssl.create_default_context()
-elif db_engine in {"mssql", "sqlserver", "azure-sql"}:
-    odbc_timeout = os.getenv("DB_ODBC_TIMEOUT", "").strip()
-    if odbc_timeout:
-        try:
-            connect_args["timeout"] = int(odbc_timeout)
-        except ValueError:
-            pass
+if db_engine == "sqlite":
+    connect_args["check_same_thread"] = False
+else:
+    engine_kwargs["pool_pre_ping"] = True
+    engine_kwargs["pool_recycle"] = 1800
+    engine_kwargs["pool_timeout"] = 60  # Increase timeout for DB wake-up
+
+    if db_engine in {"postgres", "postgresql"}:
+        if ssl_mode in {"1", "true", "require", "required"}:
+            connect_args["ssl"] = ssl.create_default_context()
+    elif db_engine in {"mssql", "sqlserver", "azure-sql"}:
+        odbc_timeout = os.getenv("DB_ODBC_TIMEOUT", "").strip()
+        if odbc_timeout:
+            try:
+                connect_args["timeout"] = int(odbc_timeout)
+            except ValueError:
+                pass
 
 engine = create_async_engine(
     settings.database_url,
-    echo=settings.debug,
-    future=True,
-    pool_pre_ping=True,
-    pool_recycle=1800,
     connect_args=connect_args,
+    **engine_kwargs,
 )
 
 # Session factory

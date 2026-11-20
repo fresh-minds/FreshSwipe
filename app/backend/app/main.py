@@ -31,11 +31,16 @@ async def lifespan(app: FastAPI):
     # Shutdown: Clean up resources if needed
 
 
+_enable_docs = settings.debug or os.getenv("ENABLE_DOCS", "false").strip().lower() in {"1", "true", "yes", "y"}
+
 app = FastAPI(
     title="FreshSwipe API",
     description="API for the FreshSwipe professional skills matching application",
     version="1.0.0",
     lifespan=lifespan,
+    docs_url="/docs" if _enable_docs else None,
+    redoc_url="/redoc" if _enable_docs else None,
+    openapi_url="/openapi.json" if _enable_docs else None,
 )
 
 # Configure CORS

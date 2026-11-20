@@ -9,7 +9,7 @@ from app.models.swipe import SwipeDirection
 
 class SwipeCreate(BaseModel):
     """Schema for creating a new swipe."""
-    user_id: str
+    user_id: Optional[str] = None
     target_user_id: UUID
     direction: SwipeDirection
 
@@ -22,6 +22,7 @@ class SwipeResponse(BaseModel):
     direction: SwipeDirection
     created_at: datetime
     target_user_name: Optional[str] = None
+    is_match: bool = False
     
     class Config:
         from_attributes = True

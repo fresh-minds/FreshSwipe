@@ -2,9 +2,6 @@
    FreshSwipe Design System — FreshMinds Edition
    =================================== */
 
-/* Google Fonts Import */
-@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
-
 :root {
   /* Colors - Primary (FreshMinds Brand) */
   --primary: #2F45C2;
@@ -69,8 +66,8 @@
   --radius-fm-accent: 24px;
 
   /* Typography */
-  --font-sans: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  --font-mono: 'JetBrains Mono', 'SF Mono', monospace;
+  --font-sans: var(--font-poppins), 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono: var(--font-jetbrains-mono), 'JetBrains Mono', 'SF Mono', monospace;
 
   /* Transitions */
   --transition-fast: 150ms ease;

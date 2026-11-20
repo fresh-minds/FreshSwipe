@@ -1,4 +1,5 @@
 """FastAPI dependencies for authentication and authorization."""
+import logging
 import os
 import uuid
 import time
@@ -8,11 +9,13 @@ from typing import Optional
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, func
 
 from app.database import get_db
 from app.config import get_settings
 from app.models.user import User
+
+logger = logging.getLogger(__name__)
 
 settings = get_settings()
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token", auto_error=False)
@@ -28,20 +31,26 @@ _jwks_cache: dict = {
 JWKS_CACHE_TTL = 3600  # 1 hour in seconds
 
 
-async def get_ms_public_keys():
+def _is_debug_enabled() -> bool:
+    return os.getenv("DEBUG", "").strip().lower() in {"1", "true", "yes", "y"}
+
+
+async def get_ms_public_keys(force_refresh: bool = False):
     """Fetch Microsoft public keys for JWT validation with caching."""
     current_time = time.time()
     
     # Return cached keys if still valid
-    if _jwks_cache["keys"] and (current_time - _jwks_cache["fetched_at"]) < JWKS_CACHE_TTL:
+    if not force_refresh and _jwks_cache["keys"] and (current_time - _jwks_cache["fetched_at"]) < JWKS_CACHE_TTL:
         return _jwks_cache["keys"]
     
-    # Fetch fresh keys
-    async with httpx.AsyncClient() as client:
+    # Fetch fresh keys with explicit timeout and status checks
+    async with httpx.AsyncClient(timeout=10.0) as client:
         resp = await client.get(DISCOVERY_URL)
+        resp.raise_for_status()
         config = resp.json()
         jwks_uri = config["jwks_uri"]
         resp = await client.get(jwks_uri)
+        resp.raise_for_status()
         keys = resp.json()["keys"]
         
         # Update cache
@@ -57,7 +66,7 @@ async def get_current_user(
     """Validate token and return current user."""
     # 1. Local Development Debug User
     debug_user_id = os.getenv("DEBUG_USER_ID")
-    debug_enabled = os.getenv("DEBUG", "").strip().lower() in {"1", "true", "yes", "y"}
+    debug_enabled = _is_debug_enabled()
     if debug_user_id and debug_enabled:
         try:
             result = await db.execute(select(User).where(User.id == uuid.UUID(debug_user_id)))
@@ -90,66 +99,74 @@ async def get_current_user(
 
     try:
         # 2. NextAuth credentials token (HS256) fallback
-        try:
-            header = jwt.get_unverified_header(token)
-            if header.get("alg", "").startswith("HS"):
-                nextauth_secret = os.getenv("NEXTAUTH_SECRET")
-                if nextauth_secret:
-                    payload = jwt.decode(
-                        token,
-                        nextauth_secret,
-                        algorithms=["HS256", "HS384", "HS512"],
-                        options={"verify_aud": False},
-                    )
-                    email = payload.get("email") or payload.get("preferred_username")
-                    name = payload.get("name") or "User"
-                    if not email:
-                        raise HTTPException(status_code=401, detail="Missing email in token")
-                    result = await db.execute(select(User).where(User.email == email))
-                    user = result.scalar_one_or_none()
-                    if not user:
-                        user = User(
-                            entra_oid=payload.get("sub") or f"local-{email}",
-                            tenant_id=payload.get("tid") or "local",
-                            name=name,
-                            email=email,
-                            is_searchable=True,
-                        )
-                        db.add(user)
-                        await db.commit()
-                        await db.refresh(user)
-                    return user
-        except jwt.InvalidTokenError:
-            # Fall through to Azure AD validation
-            pass
-
-        # 1. Fetch keys (should be cached in production)
-        keys = await get_ms_public_keys()
-        
-        # 2. Decode header to find 'kid'
         header = jwt.get_unverified_header(token)
+        if header.get("alg", "").startswith("HS"):
+            nextauth_secret = os.getenv("NEXTAUTH_SECRET")
+            if not nextauth_secret:
+                raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Credentials auth unavailable")
+            payload = jwt.decode(
+                token,
+                nextauth_secret,
+                algorithms=["HS256", "HS384", "HS512"],
+                options={"verify_aud": False},
+            )
+            email = payload.get("email") or payload.get("preferred_username")
+            name = payload.get("name") or "User"
+            if not email:
+                raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing email in token")
+            result = await db.execute(select(User).where(func.lower(User.email) == email.lower()))
+            user = result.scalar_one_or_none()
+            if not user:
+                candidate_oid = payload.get("sub") or f"local-{email.lower()}"
+                existing_oid = await db.execute(select(User).where(User.entra_oid == candidate_oid))
+                if existing_oid.scalar_one_or_none():
+                    candidate_oid = f"local-{email.lower()}"
+                user = User(
+                    entra_oid=candidate_oid,
+                    tenant_id=payload.get("tid") or "local",
+                    name=name,
+                    email=email,
+                    is_searchable=True,
+                )
+                db.add(user)
+                await db.commit()
+                await db.refresh(user)
+            return user
+
+        # 3. Fetch keys (cached in production, force-refresh once on key rotation)
+        keys = await get_ms_public_keys()
         kid = header.get("kid")
         
-        # 3. Find matching key
         key = next((k for k in keys if k["kid"] == kid), None)
         if not key:
-            raise HTTPException(status_code=401, detail="Invalid token kid")
+            keys = await get_ms_public_keys(force_refresh=True)
+            key = next((k for k in keys if k["kid"] == kid), None)
+        if not key:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token kid")
 
         # 4. Construct public key and verify
-        # Note: Using PyJWT with cryptography
         public_key = jwt.algorithms.RSAAlgorithm.from_jwk(key)
+
+        if settings.AZURE_ENTRA_TENANT_ID.lower() == "common":
+            unverified_claims = jwt.decode(token, options={"verify_signature": False})
+            tid = unverified_claims.get("tid")
+            if not tid:
+                raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing tenant ID in token")
+            expected_issuer = f"https://login.microsoftonline.com/{tid}/v2.0"
+        else:
+            expected_issuer = f"https://login.microsoftonline.com/{settings.AZURE_ENTRA_TENANT_ID}/v2.0"
         
         payload = jwt.decode(
             token,
             public_key,
             algorithms=["RS256"],
             audience=settings.AZURE_ENTRA_AD_CLIENT_ID,
-            issuer=f"https://login.microsoftonline.com/{settings.AZURE_ENTRA_TENANT_ID}/v2.0",
+            issuer=expected_issuer,
         )
         
         oid = payload.get("oid")
         if not oid:
-            raise HTTPException(status_code=401, detail="Missing OID in token")
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing OID in token")
 
         # 5. Get or create user from DB
         result = await db.execute(select(User).where(User.entra_oid == oid))
@@ -171,12 +188,15 @@ async def get_current_user(
             
         return user
 
+    except HTTPException:
+        raise
     except jwt.ExpiredSignatureError:
-        raise HTTPException(status_code=401, detail="Token expired")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token expired")
     except jwt.InvalidTokenError as e:
-        raise HTTPException(status_code=401, detail=f"Invalid token: {str(e)}")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=f"Invalid token: {str(e)}")
     except Exception:
-        raise HTTPException(status_code=500, detail="Auth error")
+        logger.exception("Unexpected authentication error")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Auth error")
 
 
 def is_admin_user(user: User) -> bool:
@@ -194,7 +214,7 @@ def is_admin_user(user: User) -> bool:
         return True
         
     debug_user_id = os.getenv("DEBUG_USER_ID")
-    if debug_user_id and str(user.id) == debug_user_id:
+    if _is_debug_enabled() and debug_user_id and str(user.id) == debug_user_id:
         return True
         
     return False
