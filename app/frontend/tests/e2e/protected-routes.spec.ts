@@ -4,11 +4,13 @@ const protectedRoutes = [
   '/',
   '/swipe',
   '/matches',
+  '/coffee-dates',
   '/profile',
   '/insights',
   '/feedback',
   '/team-trends',
   '/onboarding',
+  '/admin',
 ];
 
 test.describe('protected routes', () => {

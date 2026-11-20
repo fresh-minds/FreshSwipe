@@ -23,6 +23,7 @@ class Feedback(Base):
         Uuid(as_uuid=True),
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
+        index=True,
     )
     rating: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     category: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)

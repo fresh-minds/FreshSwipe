@@ -38,11 +38,13 @@
     align-items: center;
     justify-content: center;
     gap: 2rem;
+    flex-wrap: wrap;
 }
 
 .clickableCard {
     cursor: pointer;
     transition: all 0.3s ease;
+    font-family: inherit;
 }
 
 .clickableCard:hover {
@@ -51,11 +53,11 @@
 }
 
 .chatHint {
-    font-size: 0.75rem;
+    font-size: 0.8125rem;
+    font-weight: 500;
     color: var(--primary);
-    opacity: 0;
+    opacity: 0.85;
     transition: opacity 0.2s ease;
-    margin-top: 0.5rem;
 }
 
 .clickableCard:hover .chatHint {
@@ -109,6 +111,14 @@
 
 .heroCta {
     margin: 2.5rem 0;
+}
+
+.ctaGroup {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    flex-wrap: wrap;
 }
 
 .features {

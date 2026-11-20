@@ -1,18 +1,20 @@
 'use client';
 
-import { SessionProvider, useSession, signIn } from "next-auth/react";
+import { SessionProvider, useSession, signIn, signOut } from "next-auth/react";
 import { useEffect } from "react";
+import { CurrentUserProvider } from "@/lib/user-context";
+import { FloatingChatWidget } from "@/components/FloatingChatWidget";
 
 function AuthErrorListener({ children }: { children: React.ReactNode }) {
-    // Determine the error by casting session to any, as standard Session type doesn't have 'error'
     const { data: session } = useSession();
 
     useEffect(() => {
-        if ((session as any)?.error === "RefreshAccessTokenError") {
-            // Automatically sign in again if the token refresh failed
+        if (session?.error === "RefreshAccessTokenError") {
             signIn("azure-ad");
+        } else if (session?.error === "CredentialsExpiredError") {
+            signOut({ callbackUrl: "/login?error=SessionExpired" });
         }
-    }, [session]);
+    }, [session?.error]);
 
     return <>{children}</>;
 }
@@ -21,7 +23,10 @@ export function NextAuthProvider({ children }: { children: React.ReactNode }) {
     return (
         <SessionProvider>
             <AuthErrorListener>
-                {children}
+                <CurrentUserProvider>
+                    {children}
+                    <FloatingChatWidget />
+                </CurrentUserProvider>
             </AuthErrorListener>
         </SessionProvider>
     );

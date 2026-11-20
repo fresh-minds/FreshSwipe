@@ -1,21 +1,14 @@
 """Seed data for the FreshSwipe application."""
 import asyncio
-import os
-import ssl
-import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import random
 
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy import select
 
-from app.config import get_settings
-from app.database import Base
+from app.database import Base, engine as app_engine, async_session_maker as app_session_maker
 from app.models.user import User, UserSkill, UnitType, SkillType
 from app.models.skill import Skill
 from app.models.swipe import Swipe, SwipeDirection
-
-settings = get_settings()
 
 # Skills data
 SKILLS_DATA = [
@@ -201,19 +194,11 @@ DEMO_USERS = [
 
 
 async def seed_database():
-    """Seed the database with initial data."""
-    connect_args = {}
-    ssl_mode = os.getenv("DB_SSL", "").strip().lower()
-    if ssl_mode in {"1", "true", "require", "required"}:
-        connect_args["ssl"] = ssl.create_default_context()
-
-    engine = create_async_engine(settings.database_url, echo=True, connect_args=connect_args)
-    session_maker = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
-    
-    async with engine.begin() as conn:
+    """Seed the database with initial data using the shared application engine."""
+    async with app_engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     
-    async with session_maker() as session:
+    async with app_session_maker() as session:
         print("Seeding skills (incremental update)...")
         skills = []
         
@@ -297,7 +282,7 @@ async def seed_database():
                         user_id=user.id,
                         target_user_id=target_user.id,
                         direction=SwipeDirection.RIGHT,
-                        created_at=datetime.utcnow() - timedelta(days=1),
+                        created_at=datetime.now(timezone.utc) - timedelta(days=1),
                     )
                     session.add(swipe)
                  continue
@@ -342,7 +327,7 @@ async def seed_database():
                         user_id=user.id,
                         target_user_id=target_user.id,
                         direction=direction,
-                        created_at=datetime.utcnow() - timedelta(days=random.randint(0, 30)),
+                        created_at=datetime.now(timezone.utc) - timedelta(days=random.randint(0, 30)),
                     )
                     session.add(swipe)
         

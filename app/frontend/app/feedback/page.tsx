@@ -1,26 +1,27 @@
 'use client';
 
-import { useState } from 'react';
-import Link from 'next/link';
-import Image from 'next/image';
-import { useSession } from 'next-auth/react';
+import { Suspense, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
+import { Navbar } from '@/components/Navbar';
 import { feedbackApi } from '@/lib/api';
+import { useCurrentUser } from '@/lib/user-context';
 import styles from './feedback.module.css';
 
 const CATEGORIES = [
+    'General',
     'Bug',
     'UI/UX',
     'Performance',
     'Feature Request',
-    'Staff',
 ];
 
-export default function FeedbackPage() {
-    const { data: session } = useSession();
-    const authToken = (session as any)?.idToken || session?.accessToken;
+function FeedbackForm() {
+    const searchParams = useSearchParams();
+    const fromPage = searchParams.get('from');
+    const { authToken } = useCurrentUser();
     const [message, setMessage] = useState('');
     const [rating, setRating] = useState<number | ''>('');
-    const [category, setCategory] = useState<string>('Staff');
+    const [category, setCategory] = useState<string>('General');
     const [submitting, setSubmitting] = useState(false);
     const [success, setSuccess] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -32,12 +33,15 @@ export default function FeedbackPage() {
         setSuccess(false);
 
         try {
-            await feedbackApi.create({
-                message,
-                rating: rating === '' ? undefined : rating,
-                category,
-                page: typeof window !== 'undefined' ? window.location.pathname : undefined,
-            }, authToken as string | undefined);
+            await feedbackApi.create(
+                {
+                    message: message.trim(),
+                    rating: rating === '' ? undefined : rating,
+                    category,
+                    page: fromPage || (typeof window !== 'undefined' ? window.location.pathname : undefined),
+                },
+                authToken
+            );
             setSuccess(true);
             setMessage('');
             setRating('');
@@ -49,93 +53,92 @@ export default function FeedbackPage() {
     };
 
     return (
-        <div className="page">
-            <header className="page-header">
-                <div className="container">
-                    <nav className="nav">
-                        <Link href="/" className="nav-brand">
-                            <Image src="/logo.png" alt="FreshSwipe Logo" width={32} height={32} className="mr-2" />
-                            <span>FreshSwipe</span>
-                        </Link>
-                        <div className="nav-links">
-                            <Link href="/swipe" className="nav-link">Swipe</Link>
-                            <Link href="/insights" className="nav-link">Insights</Link>
-                            <Link href="/feedback" className="nav-link active">Feedback</Link>
-                        </div>
-                    </nav>
-                </div>
-            </header>
+        <div className={styles.card}>
+            <h1>Share Feedback</h1>
+            <p className="text-muted">
+                Help us improve FreshSwipe with your thoughts.
+                {fromPage && ` (About page: ${fromPage})`}
+            </p>
 
+            <form onSubmit={handleSubmit} className={styles.form}>
+                <label htmlFor="feedback-category" className={styles.label}>Category</label>
+                <select
+                    id="feedback-category"
+                    className={styles.select}
+                    value={category}
+                    onChange={(e) => setCategory(e.target.value)}
+                >
+                    {CATEGORIES.map((c) => (
+                        <option key={c} value={c}>{c}</option>
+                    ))}
+                </select>
+
+                <span className={styles.label}>Rating (optional)</span>
+                <div className={styles.ratingRow} role="group" aria-label="Rating out of 5">
+                    {[1, 2, 3, 4, 5].map((value) => (
+                        <button
+                            type="button"
+                            key={value}
+                            aria-pressed={rating === value}
+                            className={`${styles.ratingBtn} ${rating === value ? styles.active : ''}`}
+                            onClick={() => setRating(value)}
+                        >
+                            {value}
+                        </button>
+                    ))}
+                    <button
+                        type="button"
+                        className={`${styles.ratingBtn} ${rating === '' ? styles.active : ''}`}
+                        onClick={() => setRating('')}
+                    >
+                        Clear
+                    </button>
+                </div>
+
+                <label htmlFor="feedback-message" className={styles.label}>Feedback</label>
+                <textarea
+                    id="feedback-message"
+                    className={styles.textarea}
+                    value={message}
+                    onChange={(e) => setMessage(e.target.value)}
+                    placeholder="What should we improve?"
+                    rows={6}
+                    required
+                />
+
+                {error && <div className={styles.error} role="alert">{error}</div>}
+                {success && <div className={styles.success} role="status">Thanks! Your feedback was sent.</div>}
+
+                <button type="submit" className="btn btn-primary" disabled={submitting}>
+                    {submitting ? 'Submitting…' : 'Send Feedback'}
+                </button>
+
+                <div className={styles.divider}>
+                    <span>or</span>
+                </div>
+
+                <a
+                    href="https://github.com/fresh-minds/FreshSwipe/issues"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={styles.githubLink}
+                >
+                    Report a Bug / Technical Issue on GitHub ↗
+                </a>
+            </form>
+        </div>
+    );
+}
+
+export default function FeedbackPage() {
+    return (
+        <div className="page">
+            <Navbar />
             <main className="page-content">
                 <div className="container container-md">
-                    <div className={styles.card}>
-                        <h1>Share Feedback</h1>
-                        <p className="text-muted">Help us improve FreshSwipe with your thoughts.</p>
-
-                        <form onSubmit={handleSubmit} className={styles.form}>
-                            <label className={styles.label}>Category</label>
-                            <select
-                                className={styles.select}
-                                value={category}
-                                onChange={(e) => setCategory(e.target.value)}
-                            >
-                                {CATEGORIES.map((c) => (
-                                    <option key={c} value={c}>{c}</option>
-                                ))}
-                            </select>
-
-                            <label className={styles.label}>Rating (optional)</label>
-                            <div className={styles.ratingRow}>
-                                {[1, 2, 3, 4, 5].map((value) => (
-                                    <button
-                                        type="button"
-                                        key={value}
-                                        className={`${styles.ratingBtn} ${rating === value ? styles.active : ''}`}
-                                        onClick={() => setRating(value)}
-                                    >
-                                        {value}
-                                    </button>
-                                ))}
-                                <button
-                                    type="button"
-                                    className={`${styles.ratingBtn} ${rating === '' ? styles.active : ''}`}
-                                    onClick={() => setRating('')}
-                                >
-                                    Clear
-                                </button>
-                            </div>
-
-                            <label className={styles.label}>Feedback</label>
-                            <textarea
-                                className={styles.textarea}
-                                value={message}
-                                onChange={(e) => setMessage(e.target.value)}
-                                placeholder="What should we improve?"
-                                rows={6}
-                                required
-                            />
-
-                            {error && <div className={styles.error}>{error}</div>}
-                            {success && <div className={styles.success}>Thanks! Your feedback was sent.</div>}
-
-                            <button type="submit" className="btn btn-primary" disabled={submitting}>
-                                {submitting ? 'Submitting…' : 'Send Feedback'}
-                            </button>
-
-                            <div className={styles.divider}>
-                                <span>or</span>
-                            </div>
-
-                            <a
-                                href="https://github.com/fresh-minds/FreshSwipe/issues"
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className={styles.githubLink}
-                            >
-                                Report a Bug / Technical Issue on GitHub ↗
-                            </a>
-                        </form>
-                    </div>
+                    <Suspense fallback={<div className={styles.card}>Loading...</div>}>
+                        <FeedbackForm />
+                    </Suspense>
                 </div>
             </main>
         </div>

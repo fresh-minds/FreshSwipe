@@ -4,19 +4,19 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: 2rem;
-    gap: 1.5rem;
-    background: var(--bg-dots);
+    padding: 1.5rem;
+    gap: 1.25rem;
+    background-color: var(--bg-secondary);
 }
 
 .loadingContainer {
-    min-height: 100vh;
+    flex: 1;
+    min-height: 60vh;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     gap: 1rem;
-    background: var(--bg-primary);
 }
 
 .spinner {
@@ -34,24 +34,60 @@
     }
 }
 
+.profilePrompt {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    padding: 0.75rem 1.25rem;
+    background: var(--secondary-light);
+    border: 1px solid var(--secondary-dark);
+    border-radius: var(--radius-lg);
+    color: var(--primary-dark);
+    font-size: 0.9rem;
+    max-width: 560px;
+    text-align: center;
+}
+
+.promptLink {
+    font-weight: 600;
+    color: var(--primary);
+    text-decoration: underline;
+}
+
+.errorBanner {
+    padding: 0.75rem 1.25rem;
+    background: rgba(239, 68, 68, 0.08);
+    border: 1px solid rgba(239, 68, 68, 0.35);
+    border-radius: var(--radius-md);
+    color: #b91c1c;
+    font-size: 0.9rem;
+    max-width: 440px;
+    text-align: center;
+}
+
 .counter {
     font-size: 0.875rem;
-    color: var(--text-muted);
-    font-weight: 500;
-    padding: var(--space-sm) var(--space-md);
-    background: var(--bg-secondary);
+    color: var(--text-secondary);
+    font-weight: 600;
+    padding: var(--space-xs) var(--space-md);
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
     border-radius: var(--radius-full);
 }
 
 .cardContainer {
     position: relative;
-    width: 340px;
-    height: 440px;
+    width: 360px;
+    max-width: calc(100vw - 2rem);
+    min-height: 460px;
     perspective: 1000px;
 }
 
 .card {
     position: absolute;
+    inset: 0;
     width: 100%;
     height: 100%;
     background: var(--bg-card);
@@ -60,10 +96,11 @@
     cursor: grab;
     user-select: none;
     display: flex;
+    flex-direction: column;
     align-items: center;
-    justify-content: center;
+    justify-content: flex-start;
     box-shadow: var(--shadow-lg);
-    overflow: hidden;
+    overflow-y: auto;
     transition: box-shadow var(--transition-normal);
 }
 
@@ -76,75 +113,155 @@
 }
 
 .card2 {
-    transform: scale(0.95) translateY(-15px);
-    z-index: -1;
-    opacity: 0.6;
+    transform: scale(0.95) translateY(-14px);
+    z-index: 0;
+    opacity: 0.55;
     pointer-events: none;
     box-shadow: var(--shadow-md);
-}
-
-.card3 {
-    transform: scale(0.9) translateY(-30px);
-    z-index: -2;
-    opacity: 0.3;
-    pointer-events: none;
-    box-shadow: var(--shadow-sm);
+    justify-content: center;
 }
 
 .cardContent {
+    width: 100%;
     display: flex;
     flex-direction: column;
     align-items: center;
     text-align: center;
-    padding: 2rem;
-    gap: 1rem;
+    padding: 1.75rem 1.5rem;
+    gap: 0.65rem;
 }
 
-.cardIcon {
-    font-size: 5rem;
-    line-height: 1;
+.avatarCircle {
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2rem;
+    font-weight: 700;
+    box-shadow: var(--shadow-md);
+    flex-shrink: 0;
 }
 
 .cardTitle {
-    font-size: 1.75rem;
+    font-size: 1.5rem;
     font-weight: 700;
     color: var(--text-primary);
+    margin-top: 0.25rem;
+}
+
+.cardMetaRow {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
 }
 
 .cardCategory {
     font-size: 0.75rem;
     font-weight: 600;
     text-transform: uppercase;
-    letter-spacing: 0.1em;
-    color: var(--primary);
+    letter-spacing: 0.08em;
+    color: var(--primary-dark);
     background: var(--secondary);
-    padding: 0.375rem 1rem;
+    padding: 0.3rem 0.85rem;
     border-radius: var(--radius-full);
 }
 
-.cardDescription {
-    font-size: 0.9rem;
+.cardSeniority {
+    font-size: 0.75rem;
+    font-weight: 600;
     color: var(--text-secondary);
-    max-width: 280px;
-    line-height: 1.5;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    padding: 0.3rem 0.75rem;
+    border-radius: var(--radius-full);
+}
+
+.cardAvailability {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+
+.skillsPreview {
+    width: 100%;
+    margin-top: 0.75rem;
+    padding-top: 0.85rem;
+    border-top: 1px solid var(--border-color);
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    text-align: left;
+}
+
+.skillsSection h4 {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--text-secondary);
+    margin-bottom: 0.4rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+
+.skillTags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+}
+
+.skillTag {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.65rem;
+    background: rgba(47, 69, 194, 0.08);
+    border-radius: var(--radius-full);
+    border: 1px solid rgba(47, 69, 194, 0.2);
+    color: var(--primary-dark);
+    font-weight: 500;
+}
+
+.growthTag {
+    background: #fef3c7;
+    border-color: #fcd34d;
+    color: #92400e;
+}
+
+.toggleSkillsBtn {
+    align-self: flex-start;
+    border: none;
+    background: transparent;
+    color: var(--primary);
+    font-size: 0.8125rem;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 0.15rem 0;
+    font-family: inherit;
+}
+
+.toggleSkillsBtn:hover {
+    text-decoration: underline;
 }
 
 /* Swipe indicators */
 .indicator {
     position: absolute;
-    width: 80px;
-    height: 80px;
+    width: 72px;
+    height: 72px;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 2.5rem;
+    font-size: 2.25rem;
     font-weight: bold;
     border-radius: var(--radius-full);
     pointer-events: none;
+    z-index: 10;
 }
 
 .indicatorLeft {
-    top: 50%;
+    top: 40%;
     left: 20px;
     transform: translateY(-50%);
     background: rgba(239, 68, 68, 0.15);
@@ -153,7 +270,7 @@
 }
 
 .indicatorRight {
-    top: 50%;
+    top: 40%;
     right: 20px;
     transform: translateY(-50%);
     background: rgba(16, 185, 129, 0.15);
@@ -174,7 +291,7 @@
 .actions {
     display: flex;
     align-items: center;
-    gap: 1.5rem;
+    gap: 1.25rem;
 }
 
 .actionBtn {
@@ -182,13 +299,19 @@
     box-shadow: var(--shadow-md);
 }
 
-.actionBtn:hover {
-    transform: scale(1.1) translateY(-2px);
+.actionBtn:hover:not(:disabled) {
+    transform: scale(1.08) translateY(-2px);
     box-shadow: var(--shadow-lg);
 }
 
-.actionBtn:active {
+.actionBtn:active:not(:disabled) {
     transform: scale(0.95);
+}
+
+.undoBtn {
+    width: 46px;
+    height: 46px;
+    font-size: 1.25rem;
 }
 
 .superBtn {
@@ -198,18 +321,19 @@
 }
 
 .hint {
-    margin-top: 1rem;
+    text-align: center;
 }
 
 .hint p {
-    font-size: 0.875rem;
-    color: var(--text-muted);
+    font-size: 0.85rem;
+    color: var(--text-secondary);
 }
 
-/* Complete state */
+/* Complete / Empty state */
 .completeContainer {
     text-align: center;
-    max-width: 400px;
+    max-width: 440px;
+    width: 100%;
     padding: var(--space-2xl);
     background: var(--bg-card);
     border: 1px solid var(--border-color);
@@ -218,22 +342,29 @@
 }
 
 .completeIcon {
-    font-size: 5rem;
-    margin-bottom: 1rem;
+    font-size: 4rem;
+    margin-bottom: 0.75rem;
 }
 
 .completeContainer h2 {
-    font-size: 2rem;
+    font-size: 1.75rem;
     margin-bottom: 0.5rem;
     color: var(--text-primary);
+}
+
+.completeActions {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    margin-top: 1.5rem;
 }
 
 .summary {
     display: flex;
     justify-content: center;
-    gap: 2rem;
-    margin: 2rem 0;
-    padding: 1.5rem;
+    gap: 1.75rem;
+    margin: 1.75rem 0;
+    padding: 1.25rem;
     background: var(--bg-secondary);
     border-radius: var(--radius-lg);
     border: 1px solid var(--border-color);
@@ -247,7 +378,7 @@
 }
 
 .summaryValue {
-    font-size: 2rem;
+    font-size: 1.75rem;
     font-weight: 700;
     color: var(--primary);
 }
@@ -258,84 +389,59 @@
 
 .summaryLabel {
     font-size: 0.75rem;
-    color: var(--text-muted);
+    color: var(--text-secondary);
     text-transform: uppercase;
     letter-spacing: 0.05em;
 }
 
-@media (max-width: 768px) {
-    .cardContainer {
-        width: 300px;
-        height: 400px;
-    }
-
-    .cardIcon {
-        font-size: 4rem;
-    }
-
-    .cardTitle {
-        font-size: 1.5rem;
-    }
-}
-.card {
-    /* Existing styles... ensure overflow is hidden if not already */
-    overflow: hidden;
+/* Modals */
+.modalOverlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.55);
+    backdrop-filter: blur(4px);
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
 }
 
-.skillsOverlay {
-    position: absolute;
-    bottom: 0;
-    left: 0;
+.modalCard {
+    background: var(--bg-card);
+    border-radius: var(--radius-2xl);
+    padding: 2rem;
+    max-width: 420px;
     width: 100%;
-    background: rgba(255, 255, 255, 0.98);
-    padding: 1.5rem;
-    transform: translateY(100%);
-    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    border-top: 1px solid var(--border-color);
-    max-height: 70%;
-    overflow-y: auto;
+    text-align: center;
+    box-shadow: var(--shadow-xl);
+}
+
+.matchSparkle {
+    font-size: 2.75rem;
+    margin-bottom: 0.5rem;
+}
+
+.modalCard h2 {
+    margin-bottom: 0.5rem;
+}
+
+.modalCard p {
+    margin-bottom: 1.5rem;
+}
+
+.modalActions {
     display: flex;
     flex-direction: column;
-    gap: 1rem;
-    box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.05);
+    gap: 0.75rem;
 }
 
-.card:hover .skillsOverlay {
-    transform: translateY(0);
-}
+@media (max-width: 480px) {
+    .cardContainer {
+        min-height: 430px;
+    }
 
-/* Ensure overlay is visible on touch devices if tapped? 
-   Or provide a button? User asked for hover. 
-   On mobile hover is tricky, maybe add a 'info' button later. 
-   For now, strictly valid CSS hover. */
-
-.skillsSection h4 {
-    font-size: 0.875rem;
-    font-weight: 600;
-    color: var(--text-secondary);
-    margin-bottom: 0.5rem;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-}
-
-.skillTags {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-}
-
-.skillTag {
-    font-size: 0.75rem;
-    padding: 0.25rem 0.75rem;
-    background: var(--bg-secondary);
-    border-radius: 1rem;
-    border: 1px solid var(--border-color);
-    color: var(--text-primary);
-    font-weight: 500;
-}
-
-.growthTag {
-    border-color: var(--secondary);
-    background: rgba(245, 158, 11, 0.1); /* FreshMinds Orange/Secondary tint */
-    color: var(--secondary-dark);
+    .actions {
+        gap: 0.85rem;
+    }
 }

@@ -4,10 +4,10 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { motion, AnimatePresence } from 'framer-motion';
-import Link from 'next/link';
-import Image from 'next/image';
+import { Navbar } from '@/components/Navbar';
 import { skillsApi, usersApi, Skill } from '@/lib/api';
-import { UNITS } from '@/lib/constants';
+import { UNITS, SENIORITY_LEVELS } from '@/lib/constants';
+import { useCurrentUser } from '@/lib/user-context';
 import styles from './onboarding.module.css';
 
 type Step = 1 | 2 | 3 | 4;
@@ -15,6 +15,7 @@ type Step = 1 | 2 | 3 | 4;
 export default function OnboardingPage() {
     const router = useRouter();
     const { data: session, status } = useSession();
+    const { currentUser, authToken, refreshUser } = useCurrentUser();
     const [step, setStep] = useState<Step>(1);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -22,19 +23,37 @@ export default function OnboardingPage() {
     const [ssoNameLocked, setSsoNameLocked] = useState(false);
     const [ssoEmailLocked, setSsoEmailLocked] = useState(false);
     const [isLoadingSkills, setIsLoadingSkills] = useState(true);
+    const [hydratedFromProfile, setHydratedFromProfile] = useState(false);
 
-    // Form data
     const [formData, setFormData] = useState({
         name: '',
         email: '',
         unit: '',
+        seniority: '',
+        availability: '',
         currentSkills: [] as string[],
         growthSkills: [] as string[],
     });
 
-    // Auto-populate from SSO session
+    // Pre-populate from existing backend user profile if available, falling back to SSO session
     useEffect(() => {
-        if (status === 'authenticated' && session?.user) {
+        if (currentUser && !hydratedFromProfile) {
+            setFormData({
+                name: currentUser.name || session?.user?.name || '',
+                email: currentUser.email || session?.user?.email || '',
+                unit: currentUser.unit || '',
+                seniority: currentUser.seniority || '',
+                availability: currentUser.availability || '',
+                currentSkills: currentUser.current_skills.map((s) => s.skill_id),
+                growthSkills: currentUser.growth_skills.map((s) => s.skill_id),
+            });
+            setSsoNameLocked(Boolean(session?.user?.name));
+            setSsoEmailLocked(Boolean(session?.user?.email || currentUser.email));
+            setHydratedFromProfile(true);
+            return;
+        }
+
+        if (status === 'authenticated' && session?.user && !hydratedFromProfile) {
             const ssoName = session.user.name || '';
             const ssoEmail = session.user.email || '';
             if (ssoName || ssoEmail) {
@@ -47,7 +66,7 @@ export default function OnboardingPage() {
                 setSsoEmailLocked(Boolean(ssoEmail));
             }
         }
-    }, [status, session]);
+    }, [status, session, currentUser, hydratedFromProfile]);
 
     const loadSkills = useCallback(async () => {
         setIsLoadingSkills(true);
@@ -75,7 +94,7 @@ export default function OnboardingPage() {
         loadSkills();
     }, [loadSkills]);
 
-    const updateField = (field: string, value: unknown) => {
+    const updateField = (field: keyof typeof formData, value: string | string[]) => {
         setFormData(prev => ({ ...prev, [field]: value }));
         setError(null);
     };
@@ -92,11 +111,12 @@ export default function OnboardingPage() {
 
     const canProceed = () => {
         switch (step) {
-            case 1:
+            case 1: {
                 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
                 return formData.name.trim() !== '' &&
                     formData.email.trim() !== '' &&
                     emailRegex.test(formData.email.trim());
+            }
             case 2:
                 return formData.unit !== '';
             case 3:
@@ -111,33 +131,39 @@ export default function OnboardingPage() {
     const handleNext = async () => {
         if (step < 4) {
             setStep((step + 1) as Step);
-        } else {
-            // Submit
-            setIsLoading(true);
-            setError(null);
+            return;
+        }
 
-            try {
-                const user = await usersApi.create({
-                    entra_oid: (session?.user as any)?.id,
+        setIsLoading(true);
+        setError(null);
+
+        try {
+            const user = await usersApi.create(
+                {
+                    entra_oid: session?.user?.id,
                     name: formData.name.trim(),
                     email: formData.email.trim(),
                     unit: formData.unit,
+                    seniority: formData.seniority || undefined,
+                    availability: formData.availability.trim() || undefined,
                     current_skills: formData.currentSkills,
                     growth_skills: formData.growthSkills,
-                });
+                },
+                authToken
+            );
 
-                // Store user ID for later use
-                localStorage.setItem('freshswipe_user_id', user.id);
-                localStorage.setItem('freshswipe_user_name', user.name);
+            localStorage.setItem('freshswipe_user_id', user.id);
+            localStorage.setItem('freshswipe_user_name', user.name);
+            if (user.email) {
                 localStorage.setItem('freshswipe_user_email', user.email);
-
-                // Redirect to swipe page
-                router.push('/swipe');
-            } catch (err) {
-                setError(err instanceof Error ? err.message : 'Failed to create account');
-            } finally {
-                setIsLoading(false);
             }
+
+            await refreshUser();
+            router.push('/swipe');
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'Failed to save your onboarding profile');
+        } finally {
+            setIsLoading(false);
         }
     };
 
@@ -155,24 +181,17 @@ export default function OnboardingPage() {
 
     return (
         <div className="page">
-            <header className="page-header">
-                <div className="container">
-                    <nav className="nav">
-                        <Link href="/" className="nav-brand">
-                            <Image src="/logo.png" alt="FreshSwipe Logo" width={32} height={32} className="mr-2" />
-                            <span>FreshSwipe</span>
-                        </Link>
-                    </nav>
-                </div>
-            </header>
+            <Navbar minimal />
 
             <main className="page-content">
                 <div className="container container-md">
                     {/* Progress Steps */}
-                    <div className={styles.progressBar}>
+                    <div className={styles.progressBar} role="list" aria-label="Onboarding steps">
                         {[1, 2, 3, 4].map((s) => (
                             <div
                                 key={s}
+                                role="listitem"
+                                aria-current={s === step ? 'step' : undefined}
                                 className={`${styles.progressStep} ${s <= step ? styles.active : ''} ${s < step ? styles.completed : ''}`}
                             >
                                 <div className={styles.stepNumber}>{s < step ? '✓' : s}</div>
@@ -193,7 +212,7 @@ export default function OnboardingPage() {
                             initial={{ opacity: 0, x: 20 }}
                             animate={{ opacity: 1, x: 0 }}
                             exit={{ opacity: 0, x: -20 }}
-                            transition={{ duration: 0.3 }}
+                            transition={{ duration: 0.25 }}
                             className={styles.stepContent}
                         >
                             {step === 1 && (
@@ -206,34 +225,38 @@ export default function OnboardingPage() {
                                     </p>
 
                                     <div className="form-group">
-                                        <label className="form-label">
+                                        <label htmlFor="onboarding-name" className="form-label">
                                             Your Name
-                                            {ssoNameLocked && <span style={{ color: '#0078d4', marginLeft: '8px', fontSize: '0.8em' }}>✓ From Microsoft</span>}
+                                            {ssoNameLocked && (
+                                                <span className={styles.ssoBadge}>✓ From Microsoft</span>
+                                            )}
                                         </label>
                                         <input
+                                            id="onboarding-name"
                                             type="text"
-                                            className="form-input"
+                                            className={`form-input ${ssoNameLocked ? styles.lockedInput : ''}`}
                                             placeholder="Enter your full name"
                                             value={formData.name}
                                             onChange={(e) => updateField('name', e.target.value)}
                                             readOnly={ssoNameLocked}
-                                            style={ssoNameLocked ? { backgroundColor: '#f0f0f0', cursor: 'not-allowed' } : {}}
                                         />
                                     </div>
 
                                     <div className="form-group">
-                                        <label className="form-label">
+                                        <label htmlFor="onboarding-email" className="form-label">
                                             Email Address
-                                            {ssoEmailLocked && <span style={{ color: '#0078d4', marginLeft: '8px', fontSize: '0.8em' }}>✓ From Microsoft</span>}
+                                            {ssoEmailLocked && (
+                                                <span className={styles.ssoBadge}>✓ From Microsoft</span>
+                                            )}
                                         </label>
                                         <input
+                                            id="onboarding-email"
                                             type="email"
-                                            className="form-input"
-                                            placeholder="your.email@company.com"
+                                            className={`form-input ${ssoEmailLocked ? styles.lockedInput : ''}`}
+                                            placeholder="your.email@freshminds.nl"
                                             value={formData.email}
                                             onChange={(e) => updateField('email', e.target.value)}
                                             readOnly={ssoEmailLocked}
-                                            style={ssoEmailLocked ? { backgroundColor: '#f0f0f0', cursor: 'not-allowed' } : {}}
                                         />
                                     </div>
                                 </div>
@@ -247,14 +270,50 @@ export default function OnboardingPage() {
                                     <div className={styles.unitGrid}>
                                         {UNITS.map((unit) => (
                                             <button
+                                                type="button"
                                                 key={unit.value}
                                                 className={`${styles.unitCard} ${formData.unit === unit.value ? styles.selected : ''}`}
                                                 onClick={() => updateField('unit', unit.value)}
+                                                aria-pressed={formData.unit === unit.value}
                                             >
-                                                <span className={styles.unitIcon}>{unit.icon}</span>
+                                                <span className={styles.unitIcon} aria-hidden="true">{unit.icon}</span>
                                                 <span className={styles.unitLabel}>{unit.label}</span>
                                             </button>
                                         ))}
+                                    </div>
+
+                                    <div className={styles.optionalRow}>
+                                        <div className="form-group">
+                                            <label htmlFor="onboarding-seniority" className="form-label">
+                                                Seniority (optional)
+                                            </label>
+                                            <select
+                                                id="onboarding-seniority"
+                                                className="form-input form-select"
+                                                value={formData.seniority}
+                                                onChange={(e) => updateField('seniority', e.target.value)}
+                                            >
+                                                <option value="">Select level</option>
+                                                {SENIORITY_LEVELS.map((level) => (
+                                                    <option key={level.value} value={level.value}>
+                                                        {level.label}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                        <div className="form-group">
+                                            <label htmlFor="onboarding-availability" className="form-label">
+                                                Coffee Availability (optional)
+                                            </label>
+                                            <input
+                                                id="onboarding-availability"
+                                                type="text"
+                                                className="form-input"
+                                                placeholder="e.g. 1h/week, ad-hoc, monthly"
+                                                value={formData.availability}
+                                                onChange={(e) => updateField('availability', e.target.value)}
+                                            />
+                                        </div>
                                     </div>
                                 </div>
                             )}
@@ -262,29 +321,38 @@ export default function OnboardingPage() {
                             {step === 3 && (
                                 <div className="card">
                                     <h2>What are your current skills?</h2>
-                                    <p className="mb-xl">Select skills you already have experience with.</p>
+                                    <p className="mb-xl">
+                                        Select skills you already have experience with ({formData.currentSkills.length} selected).
+                                    </p>
 
                                     {isLoadingSkills && <p>Loading skills...</p>}
                                     {!isLoadingSkills && skills.length === 0 && (
                                         <div>
                                             <p>No skills available yet.</p>
-                                            <button className="btn btn-secondary" onClick={loadSkills}>Retry Loading Skills</button>
+                                            <button type="button" className="btn btn-secondary" onClick={loadSkills}>
+                                                Retry Loading Skills
+                                            </button>
                                         </div>
                                     )}
                                     {Object.entries(skillsByCategory).map(([category, categorySkills]) => (
                                         <div key={category} className={styles.skillCategory}>
                                             <h4 className={styles.categoryTitle}>{category}</h4>
                                             <div className="chip-group">
-                                                {categorySkills.map((skill) => (
-                                                    <button
-                                                        key={skill.id}
-                                                        className={`chip ${formData.currentSkills.includes(skill.id) ? 'selected' : ''}`}
-                                                        onClick={() => toggleSkill('currentSkills', skill.id)}
-                                                    >
-                                                        <span className="icon">{skill.icon}</span>
-                                                        {skill.name}
-                                                    </button>
-                                                ))}
+                                                {categorySkills.map((skill) => {
+                                                    const selected = formData.currentSkills.includes(skill.id);
+                                                    return (
+                                                        <button
+                                                            type="button"
+                                                            key={skill.id}
+                                                            className={`chip ${selected ? 'selected' : ''}`}
+                                                            onClick={() => toggleSkill('currentSkills', skill.id)}
+                                                            aria-pressed={selected}
+                                                        >
+                                                            <span className="icon" aria-hidden="true">{skill.icon}</span>
+                                                            {skill.name}
+                                                        </button>
+                                                    );
+                                                })}
                                             </div>
                                         </div>
                                     ))}
@@ -294,29 +362,38 @@ export default function OnboardingPage() {
                             {step === 4 && (
                                 <div className="card">
                                     <h2>Where do you want to grow?</h2>
-                                    <p className="mb-xl">Select skills you&apos;d like to develop or learn more about.</p>
+                                    <p className="mb-xl">
+                                        Select skills you&apos;d like to develop or learn more about ({formData.growthSkills.length} selected).
+                                    </p>
 
                                     {isLoadingSkills && <p>Loading skills...</p>}
                                     {!isLoadingSkills && skills.length === 0 && (
                                         <div>
                                             <p>No skills available yet.</p>
-                                            <button className="btn btn-secondary" onClick={loadSkills}>Retry Loading Skills</button>
+                                            <button type="button" className="btn btn-secondary" onClick={loadSkills}>
+                                                Retry Loading Skills
+                                            </button>
                                         </div>
                                     )}
                                     {Object.entries(skillsByCategory).map(([category, categorySkills]) => (
                                         <div key={category} className={styles.skillCategory}>
                                             <h4 className={styles.categoryTitle}>{category}</h4>
                                             <div className="chip-group">
-                                                {categorySkills.map((skill) => (
-                                                    <button
-                                                        key={skill.id}
-                                                        className={`chip ${formData.growthSkills.includes(skill.id) ? 'selected' : ''}`}
-                                                        onClick={() => toggleSkill('growthSkills', skill.id)}
-                                                    >
-                                                        <span className="icon">{skill.icon}</span>
-                                                        {skill.name}
-                                                    </button>
-                                                ))}
+                                                {categorySkills.map((skill) => {
+                                                    const selected = formData.growthSkills.includes(skill.id);
+                                                    return (
+                                                        <button
+                                                            type="button"
+                                                            key={skill.id}
+                                                            className={`chip ${selected ? 'selected' : ''}`}
+                                                            onClick={() => toggleSkill('growthSkills', skill.id)}
+                                                            aria-pressed={selected}
+                                                        >
+                                                            <span className="icon" aria-hidden="true">{skill.icon}</span>
+                                                            {skill.name}
+                                                        </button>
+                                                    );
+                                                })}
                                             </div>
                                         </div>
                                     ))}
@@ -325,9 +402,9 @@ export default function OnboardingPage() {
                         </motion.div>
                     </AnimatePresence>
 
-                    {/* Error message */}
                     {error && (
                         <motion.div
+                            role="alert"
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             className={styles.error}
@@ -336,9 +413,9 @@ export default function OnboardingPage() {
                         </motion.div>
                     )}
 
-                    {/* Navigation buttons */}
                     <div className={styles.nav}>
                         <button
+                            type="button"
                             className="btn btn-secondary"
                             onClick={handleBack}
                             disabled={step === 1}
@@ -346,6 +423,7 @@ export default function OnboardingPage() {
                             ← Back
                         </button>
                         <button
+                            type="button"
                             className="btn btn-primary"
                             onClick={handleNext}
                             disabled={!canProceed() || isLoading}

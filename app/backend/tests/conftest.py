@@ -117,6 +117,31 @@ async def authenticated_client(db_session, test_user) -> AsyncGenerator[AsyncCli
 
 
 @pytest_asyncio.fixture
+async def admin_client(db_session, test_user) -> AsyncGenerator[AsyncClient, None]:
+    """Create an authenticated admin test client."""
+    from unittest.mock import patch
+
+    db_session.add(test_user)
+    await db_session.commit()
+
+    async def override_get_db():
+        yield db_session
+
+    async def override_get_current_user():
+        return test_user
+
+    app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_current_user] = override_get_current_user
+
+    with patch("app.api.deps.settings.admin_emails", [test_user.email]):
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            yield client
+
+    app.dependency_overrides.clear()
+
+
+@pytest_asyncio.fixture
 async def unauthenticated_client(db_session) -> AsyncGenerator[AsyncClient, None]:
     """Create an unauthenticated test client."""
     async def override_get_db():

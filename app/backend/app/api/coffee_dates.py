@@ -23,6 +23,39 @@ from app.schemas.coffee_date import (
 router = APIRouter(prefix="/coffee-dates", tags=["coffee-dates"])
 
 
+def _build_coffee_date_out(cd: CoffeeDate, current_user_id: UUID) -> CoffeeDateOut:
+    """Serialize CoffeeDate while respecting each participant's show_email privacy setting."""
+    requester = cd.requester
+    recipient = cd.recipient
+    requester_email = (
+        requester.email
+        if requester and (requester.id == current_user_id or requester.show_email)
+        else ""
+    )
+    recipient_email = (
+        recipient.email
+        if recipient and (recipient.id == current_user_id or recipient.show_email)
+        else ""
+    )
+    return CoffeeDateOut(
+        id=cd.id,
+        requester_id=cd.requester_id,
+        requester_name=requester.name if requester else "Unknown",
+        requester_email=requester_email,
+        recipient_id=cd.recipient_id,
+        recipient_name=recipient.name if recipient else "Unknown",
+        recipient_email=recipient_email,
+        status=cd.status,
+        proposed_time=cd.proposed_time,
+        location=cd.location,
+        message=cd.message,
+        match_score=cd.match_score,
+        match_reasons=cd.match_reasons or [],
+        created_at=cd.created_at,
+        updated_at=cd.updated_at,
+    )
+
+
 @router.get("/suggestions", response_model=List[CoffeeDateSuggestion])
 async def get_coffee_date_suggestions(
     limit: int = Query(10, ge=1, le=50, description="Maximum suggestions to return"),
@@ -31,31 +64,35 @@ async def get_coffee_date_suggestions(
     current_user: User = Depends(get_current_user)
 ):
     """Get suggested colleagues for coffee dates based on skill matching."""
-    # Get matches using the existing matching service
     matches = await MatchingService.get_matches(db, current_user.id, match_type)
     
-    # Filter out users who already have pending coffee date requests
+    # Filter out users who already have pending or accepted coffee date requests in either direction
     existing_requests = await db.execute(
-        select(CoffeeDate.recipient_id).where(
-            CoffeeDate.requester_id == current_user.id,
+        select(CoffeeDate.requester_id, CoffeeDate.recipient_id).where(
+            or_(
+                CoffeeDate.requester_id == current_user.id,
+                CoffeeDate.recipient_id == current_user.id,
+            ),
             CoffeeDate.status.in_([
                 CoffeeDateStatus.REQUESTED, 
                 CoffeeDateStatus.ACCEPTED
             ])
         )
     )
-    pending_recipient_ids = set(row[0] for row in existing_requests.fetchall())
+    active_partner_ids = set()
+    for req_id, rec_id in existing_requests.fetchall():
+        active_partner_ids.add(rec_id if req_id == current_user.id else req_id)
     
     suggestions = []
-    for match in matches[:limit * 2]:  # Get extra in case we filter some out
-        if match.user_b_id in pending_recipient_ids:
+    for match in matches[:limit * 2]:
+        if match.user_b_id in active_partner_ids or match.user_b_id == current_user.id:
             continue
-            
-        # Get the matched user details
-        user_result = await db.execute(
-            select(User).where(User.id == match.user_b_id)
-        )
-        matched_user = user_result.scalar_one_or_none()
+
+        # Reuse eager-loaded user_b (avoids N+1 queries)
+        matched_user = match.user_b
+        if matched_user is None:
+            user_result = await db.execute(select(User).where(User.id == match.user_b_id))
+            matched_user = user_result.scalar_one_or_none()
         
         if matched_user and matched_user.is_searchable:
             suggestions.append(CoffeeDateSuggestion(
@@ -97,23 +134,7 @@ async def auto_match_coffee_date(
     )
     coffee_date = existing.scalar_one_or_none()
     if coffee_date:
-        return CoffeeDateOut(
-            id=coffee_date.id,
-            requester_id=coffee_date.requester_id,
-            requester_name=coffee_date.requester.name,
-            requester_email=coffee_date.requester.email,
-            recipient_id=coffee_date.recipient_id,
-            recipient_name=coffee_date.recipient.name,
-            recipient_email=coffee_date.recipient.email if coffee_date.recipient.show_email else "",
-            status=coffee_date.status,
-            proposed_time=coffee_date.proposed_time,
-            location=coffee_date.location,
-            message=coffee_date.message,
-            match_score=coffee_date.match_score,
-            match_reasons=coffee_date.match_reasons,
-            created_at=coffee_date.created_at,
-            updated_at=coffee_date.updated_at,
-        )
+        return _build_coffee_date_out(coffee_date, current_user.id)
 
     matches = await MatchingService.get_matches(db, current_user.id)
     recipient = None
@@ -121,8 +142,10 @@ async def auto_match_coffee_date(
     for match in matches:
         if match.user_b_id == current_user.id:
             continue
-        user_result = await db.execute(select(User).where(User.id == match.user_b_id))
-        candidate = user_result.scalar_one_or_none()
+        candidate = match.user_b
+        if candidate is None:
+            user_result = await db.execute(select(User).where(User.id == match.user_b_id))
+            candidate = user_result.scalar_one_or_none()
         if candidate and candidate.is_searchable:
             recipient = candidate
             match_info = match
@@ -171,23 +194,9 @@ async def auto_match_coffee_date(
     await db.commit()
     await db.refresh(coffee_date)
 
-    return CoffeeDateOut(
-        id=coffee_date.id,
-        requester_id=current_user.id,
-        requester_name=current_user.name,
-        requester_email=current_user.email,
-        recipient_id=recipient.id,
-        recipient_name=recipient.name,
-        recipient_email=recipient.email if recipient.show_email else "",
-        status=coffee_date.status,
-        proposed_time=coffee_date.proposed_time,
-        location=coffee_date.location,
-        message=coffee_date.message,
-        match_score=coffee_date.match_score,
-        match_reasons=coffee_date.match_reasons,
-        created_at=coffee_date.created_at,
-        updated_at=coffee_date.updated_at,
-    )
+    coffee_date.requester = current_user
+    coffee_date.recipient = recipient
+    return _build_coffee_date_out(coffee_date, current_user.id)
 
 
 @router.post("/request", response_model=CoffeeDateOut, status_code=status.HTTP_201_CREATED)
@@ -215,11 +224,13 @@ async def create_coffee_date_request(
             detail="Cannot send coffee date request to yourself"
         )
     
-    # Check for existing pending request
+    # Check for existing pending request in either direction
     existing = await db.execute(
         select(CoffeeDate).where(
-            CoffeeDate.requester_id == current_user.id,
-            CoffeeDate.recipient_id == request.recipient_id,
+            or_(
+                and_(CoffeeDate.requester_id == current_user.id, CoffeeDate.recipient_id == request.recipient_id),
+                and_(CoffeeDate.requester_id == request.recipient_id, CoffeeDate.recipient_id == current_user.id),
+            ),
             CoffeeDate.status.in_([CoffeeDateStatus.REQUESTED, CoffeeDateStatus.ACCEPTED])
         )
     )
@@ -249,23 +260,9 @@ async def create_coffee_date_request(
     await db.commit()
     await db.refresh(coffee_date)
     
-    return CoffeeDateOut(
-        id=coffee_date.id,
-        requester_id=current_user.id,
-        requester_name=current_user.name,
-        requester_email=current_user.email,
-        recipient_id=recipient.id,
-        recipient_name=recipient.name,
-        recipient_email=recipient.email if recipient.show_email else "",
-        status=coffee_date.status,
-        proposed_time=coffee_date.proposed_time,
-        location=coffee_date.location,
-        message=coffee_date.message,
-        match_score=coffee_date.match_score,
-        match_reasons=coffee_date.match_reasons,
-        created_at=coffee_date.created_at,
-        updated_at=coffee_date.updated_at,
-    )
+    coffee_date.requester = current_user
+    coffee_date.recipient = recipient
+    return _build_coffee_date_out(coffee_date, current_user.id)
 
 
 @router.get("/", response_model=List[CoffeeDateOut])
@@ -291,26 +288,7 @@ async def list_coffee_dates(
     result = await db.execute(query)
     coffee_dates = result.scalars().all()
     
-    return [
-        CoffeeDateOut(
-            id=cd.id,
-            requester_id=cd.requester_id,
-            requester_name=cd.requester.name,
-            requester_email=cd.requester.email,
-            recipient_id=cd.recipient_id,
-            recipient_name=cd.recipient.name,
-            recipient_email=cd.recipient.email if cd.recipient.show_email else "",
-            status=cd.status,
-            proposed_time=cd.proposed_time,
-            location=cd.location,
-            message=cd.message,
-            match_score=cd.match_score,
-            match_reasons=cd.match_reasons,
-            created_at=cd.created_at,
-            updated_at=cd.updated_at,
-        )
-        for cd in coffee_dates
-    ]
+    return [_build_coffee_date_out(cd, current_user.id) for cd in coffee_dates]
 
 
 @router.patch("/{coffee_date_id}/respond", response_model=CoffeeDateOut)
@@ -358,23 +336,7 @@ async def respond_to_coffee_date(
     await db.commit()
     await db.refresh(coffee_date)
     
-    return CoffeeDateOut(
-        id=coffee_date.id,
-        requester_id=coffee_date.requester_id,
-        requester_name=coffee_date.requester.name,
-        requester_email=coffee_date.requester.email,
-        recipient_id=coffee_date.recipient_id,
-        recipient_name=coffee_date.recipient.name,
-        recipient_email=coffee_date.recipient.email if coffee_date.recipient.show_email else "",
-        status=coffee_date.status,
-        proposed_time=coffee_date.proposed_time,
-        location=coffee_date.location,
-        message=coffee_date.message,
-        match_score=coffee_date.match_score,
-        match_reasons=coffee_date.match_reasons,
-        created_at=coffee_date.created_at,
-        updated_at=coffee_date.updated_at,
-    )
+    return _build_coffee_date_out(coffee_date, current_user.id)
 
 
 @router.patch("/{coffee_date_id}/complete", response_model=CoffeeDateOut)
@@ -416,20 +378,4 @@ async def complete_coffee_date(
     await db.commit()
     await db.refresh(coffee_date)
     
-    return CoffeeDateOut(
-        id=coffee_date.id,
-        requester_id=coffee_date.requester_id,
-        requester_name=coffee_date.requester.name,
-        requester_email=coffee_date.requester.email,
-        recipient_id=coffee_date.recipient_id,
-        recipient_name=coffee_date.recipient.name,
-        recipient_email=coffee_date.recipient.email if coffee_date.recipient.show_email else "",
-        status=coffee_date.status,
-        proposed_time=coffee_date.proposed_time,
-        location=coffee_date.location,
-        message=coffee_date.message,
-        match_score=coffee_date.match_score,
-        match_reasons=coffee_date.match_reasons,
-        created_at=coffee_date.created_at,
-        updated_at=coffee_date.updated_at,
-    )
+    return _build_coffee_date_out(coffee_date, current_user.id)

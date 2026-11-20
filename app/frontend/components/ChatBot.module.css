@@ -64,6 +64,72 @@
     font-size: 0.9375rem;
     line-height: 1.5;
     animation: fadeIn 0.3s ease;
+    white-space: pre-wrap;
+    word-break: break-word;
+    text-align: left;
+}
+
+.starters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 0.25rem;
+}
+
+.starterChip {
+    padding: 0.45rem 0.75rem;
+    border-radius: var(--radius-full);
+    border: 1px solid var(--border-color);
+    background: var(--bg-secondary);
+    color: var(--primary);
+    font-size: 0.8125rem;
+    font-family: inherit;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    text-align: left;
+}
+
+.starterChip:hover {
+    border-color: var(--primary);
+    background: var(--secondary-light);
+}
+
+.floatingRoot {
+    position: fixed;
+    right: 1.5rem;
+    bottom: 1.5rem;
+    z-index: 900;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.75rem;
+}
+
+.floatingWindow {
+    max-width: calc(100vw - 2rem);
+}
+
+.floatingFab {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.25rem;
+    border: none;
+    border-radius: var(--radius-full);
+    background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+    color: #ffffff;
+    font-family: var(--font-sans);
+    font-size: 0.9375rem;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: var(--shadow-lg);
+    transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.floatingFab:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-xl);
 }
 
 .userMessage {

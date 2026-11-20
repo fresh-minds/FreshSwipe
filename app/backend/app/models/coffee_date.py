@@ -41,11 +41,13 @@ class CoffeeDate(Base):
         Uuid(as_uuid=True),
         ForeignKey("users.id", ondelete=_user_fk_ondelete()),
         nullable=False,
+        index=True,
     )
     recipient_id: Mapped[uuid.UUID] = mapped_column(
         Uuid(as_uuid=True),
         ForeignKey("users.id", ondelete=_user_fk_ondelete()),
         nullable=False,
+        index=True,
     )
     match_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         Uuid(as_uuid=True),
@@ -55,6 +57,7 @@ class CoffeeDate(Base):
     status: Mapped[CoffeeDateStatus] = mapped_column(
         default=CoffeeDateStatus.SUGGESTED,
         nullable=False,
+        index=True,
     )
     proposed_time: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True),

@@ -1,143 +1,177 @@
 'use client';
 
-import { useSession } from 'next-auth/react';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
+import { AnimatePresence } from 'framer-motion';
+import { Navbar } from '@/components/Navbar';
 import ProfileModal from '@/components/ProfileModal';
+import { matchesApi, MatchItem } from '@/lib/api';
+import { useCurrentUser } from '@/lib/user-context';
 import styles from './matches.module.css';
 
-interface Match {
-    id: string;
-    user_b_id: string;
-    user_b_name: string;
-    user_b_email: string | null;
-    score: number;
-    reasons: string[];
-    match_type: string;
-}
+type FilterType = 'all' | 'mutual' | 'mentor' | 'peer';
 
 export default function MatchesPage() {
-    const { data: session, status } = useSession();
-    const authToken = (session as any)?.idToken || session?.accessToken;
-    const [matches, setMatches] = useState<Match[]>([]);
+    const { authToken, sessionStatus } = useCurrentUser();
+    const [matches, setMatches] = useState<MatchItem[]>([]);
+    const [filter, setFilter] = useState<FilterType>('all');
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
 
-    useEffect(() => {
-        if (status === 'authenticated') {
-            fetchMatches();
-        }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [status]);
-
-    const fetchMatches = async () => {
+    const fetchMatches = useCallback(async (selectedFilter: FilterType) => {
+        if (!authToken) return;
         setLoading(true);
         setError(null);
         try {
-            const res = await fetch(`/api/v1/matches/`, {
-                headers: {
-                    'Authorization': `Bearer ${authToken}`
-                }
-            });
-            const data = await res.json().catch(() => null);
-            if (!res.ok || !Array.isArray(data)) {
-                setMatches([]);
-                setError('Unable to load matches right now. Please try again.');
-                return;
-            }
-
-            const normalized = data.map((match: Match) => ({
+            const data = await matchesApi.list(
+                selectedFilter === 'all' ? undefined : selectedFilter,
+                50,
+                authToken
+            );
+            const normalized = data.map((match) => ({
                 ...match,
                 reasons: Array.isArray(match.reasons) ? match.reasons : [],
             }));
             setMatches(normalized);
         } catch (err) {
-            console.error("Failed to fetch matches", err);
+            console.error('Failed to fetch matches', err);
             setMatches([]);
             setError('Unable to load matches right now. Please try again.');
         } finally {
             setLoading(false);
         }
-    };
+    }, [authToken]);
 
-    if (status === 'unauthenticated') {
-        return <div>Please sign in to view matches.</div>;
-    }
+    useEffect(() => {
+        if (sessionStatus === 'authenticated' && authToken) {
+            fetchMatches(filter);
+        } else if (sessionStatus === 'unauthenticated') {
+            setLoading(false);
+        }
+    }, [sessionStatus, authToken, filter, fetchMatches]);
 
     return (
         <div className="page">
-            <header className="page-header">
-                <div className="container">
-                    <nav className="nav">
-                        <Link href="/" className="nav-brand">
-                            <Image src="/logo.png" alt="FreshSwipe Logo" width={32} height={32} className="mr-2" />
-                            <span>FreshSwipe</span>
-                        </Link>
-                        <div className="nav-links">
-                            <span className="text-secondary">Hi, {session?.user?.name || 'User'}</span>
-                            <Link href="/insights" className="nav-link">My Insights</Link>
-                        </div>
-                    </nav>
-                </div>
-            </header>
+            <Navbar />
 
             <main className="page-content">
                 <div className="container">
                     <div className={styles.header}>
                         <h1>Your Matches</h1>
+                        <div className={styles.filters} role="tablist" aria-label="Filter matches">
+                            {(
+                                [
+                                    { key: 'all', label: 'All' },
+                                    { key: 'mutual', label: '❤️ Mutual' },
+                                    { key: 'mentor', label: '🚀 Mentors' },
+                                    { key: 'peer', label: '🤝 Peers' },
+                                ] as const
+                            ).map((tab) => (
+                                <button
+                                    key={tab.key}
+                                    type="button"
+                                    role="tab"
+                                    aria-selected={filter === tab.key}
+                                    className={filter === tab.key ? styles.activeFilter : ''}
+                                    onClick={() => setFilter(tab.key)}
+                                >
+                                    {tab.label}
+                                </button>
+                            ))}
+                        </div>
                     </div>
 
                     {loading ? (
-                        <div className={styles.loading}>Finding your perfect matches...</div>
+                        <div className={styles.loading}>Finding your best matches...</div>
+                    ) : error ? (
+                        <div className={styles.empty} role="alert">
+                            <p>{error}</p>
+                            <button
+                                type="button"
+                                className="btn btn-secondary mt-md"
+                                onClick={() => fetchMatches(filter)}
+                            >
+                                Try Again
+                            </button>
+                        </div>
                     ) : (
                         <div className={styles.grid}>
-                            {error && (
-                                <div className={styles.empty}>{error}</div>
-                            )}
-                            {matches.map(match => (
-                                <div key={match.id} className={`${styles.matchCard} ${match.match_type === 'mutual' ? styles.mutual : ''}`}>
-                                    <div className={styles.scoreBadge} style={{ backgroundColor: match.match_type === 'mutual' ? '#ff4757' : undefined }}>
-                                        {match.match_type === 'mutual' ? '❤️' : `${Math.round(match.score)} pts`}
-                                    </div>
-                                    <h2 className={styles.userName}>{match.user_b_name}</h2>
-                                    <h3 className={styles.matchType}>
-                                        {match.match_type === 'mutual' ? '✨ It\'s a Match!' :
-                                            match.match_type === 'mentor' ? '🚀 Potential Mentor' : '🤝 Professional Peer'}
-                                    </h3>
-                                    <ul className={styles.reasons}>
-                                        {match.reasons.map((reason, i) => (
-                                            <li key={i}>{reason}</li>
-                                        ))}
-                                    </ul>
-                                    <div className={styles.actions}>
-                                        <button
-                                            className={styles.connectButton}
-                                            onClick={() => setSelectedUserId(match.user_b_id)}
-                                        >
-                                            View Profile
-                                        </button>
-                                        <a
-                                            className={styles.teamsButton}
-                                            href={match.user_b_email ? `https://outlook.office.com/calendar/0/deeplink/compose?subject=${encodeURIComponent("Coffee Chat? ☕")}&body=${encodeURIComponent(`Hi ${match.user_b_name},\n\nI saw your profile on FreshSwipe and noticed we have compatible skills! Would you be open to grabbing a virtual or in-person coffee sometime?\n\nBest,`)}&to=${match.user_b_email}` : '#'}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            onClick={(e) => {
-                                                if (!match.user_b_email) {
-                                                    e.preventDefault();
-                                                    alert("This user has hidden their email.");
-                                                }
+                            {matches.map((match) => {
+                                const calendarUrl = match.user_b_email
+                                    ? `https://outlook.office.com/calendar/0/deeplink/compose?subject=${encodeURIComponent('Coffee Chat? ☕')}&body=${encodeURIComponent(`Hi ${match.user_b_name},\n\nI saw your profile on FreshSwipe and noticed we have compatible skills! Would you be open to grabbing a virtual or in-person coffee sometime?\n\nBest,`)}&to=${encodeURIComponent(match.user_b_email)}`
+                                    : null;
+
+                                return (
+                                    <div
+                                        key={match.id}
+                                        className={`${styles.matchCard} ${match.match_type === 'mutual' ? styles.mutual : ''}`}
+                                    >
+                                        <div
+                                            className={styles.scoreBadge}
+                                            style={{
+                                                backgroundColor: match.match_type === 'mutual' ? '#ef4444' : undefined,
+                                                color: match.match_type === 'mutual' ? '#ffffff' : undefined,
                                             }}
                                         >
-                                            📅 Schedule Coffee
-                                        </a>
+                                            {match.match_type === 'mutual' ? '❤️ Mutual' : `${Math.round(match.score)} pts`}
+                                        </div>
+                                        <h2 className={styles.userName}>{match.user_b_name}</h2>
+                                        <h3 className={styles.matchType}>
+                                            {match.match_type === 'mutual'
+                                                ? "✨ It's a Match!"
+                                                : match.match_type === 'mentor'
+                                                    ? '🚀 Skill Mentor Match'
+                                                    : '🤝 Professional Peer'}
+                                        </h3>
+                                        <ul className={styles.reasons}>
+                                            {match.reasons.map((reason, i) => (
+                                                <li key={i}>{reason}</li>
+                                            ))}
+                                        </ul>
+                                        <div className={styles.actions}>
+                                            <button
+                                                type="button"
+                                                className={styles.connectButton}
+                                                onClick={() => setSelectedUserId(match.user_b_id)}
+                                            >
+                                                View Profile
+                                            </button>
+                                            {calendarUrl ? (
+                                                <a
+                                                    className={styles.teamsButton}
+                                                    href={calendarUrl}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                >
+                                                    📅 Schedule Coffee
+                                                </a>
+                                            ) : (
+                                                <span
+                                                    className={`${styles.teamsButton} ${styles.disabledAction}`}
+                                                    title="This colleague keeps their email private"
+                                                >
+                                                    🔒 Email Private
+                                                </span>
+                                            )}
+                                        </div>
                                     </div>
-                                </div>
-                            ))}
+                                );
+                            })}
+
                             {matches.length === 0 && (
                                 <div className={styles.empty}>
-                                    No matches found yet. Keep swiping on skills to help us find overlaps!
+                                    <p>
+                                        No matches found for this filter yet. Swipe on colleagues or update your skills to discover new connections!
+                                    </p>
+                                    <div className={styles.emptyActions}>
+                                        <Link href="/swipe" className="btn btn-primary">
+                                            Swipe Colleagues →
+                                        </Link>
+                                        <Link href="/profile" className="btn btn-secondary">
+                                            Update Skills
+                                        </Link>
+                                    </div>
                                 </div>
                             )}
                         </div>
@@ -145,13 +179,15 @@ export default function MatchesPage() {
                 </div>
             </main>
 
-            {selectedUserId && (
-                <ProfileModal
-                    userId={selectedUserId}
-                    authToken={authToken}
-                    onClose={() => setSelectedUserId(null)}
-                />
-            )}
+            <AnimatePresence>
+                {selectedUserId && (
+                    <ProfileModal
+                        userId={selectedUserId}
+                        authToken={authToken}
+                        onClose={() => setSelectedUserId(null)}
+                    />
+                )}
+            </AnimatePresence>
         </div>
     );
 }

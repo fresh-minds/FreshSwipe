@@ -3,8 +3,6 @@
  * These are used across multiple frontend pages to ensure consistency.
  */
 
-export const ADMIN_EMAIL = 'karel.goense@freshminds.nl';
-
 export const UNITS = [
     { value: 'Software', label: 'Software Engineering', icon: '💻' },
     { value: 'Data', label: 'Data & Analytics', icon: '📊' },

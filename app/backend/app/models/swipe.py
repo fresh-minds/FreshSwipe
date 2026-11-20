@@ -1,7 +1,7 @@
 """Swipe database model."""
 import uuid
 from datetime import datetime, timezone
-from sqlalchemy import DateTime, ForeignKey, Enum
+from sqlalchemy import DateTime, ForeignKey, Enum, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy import Uuid
 import enum
@@ -29,6 +29,9 @@ class Swipe(Base):
     """Swipe model representing a user's interest in a user."""
     
     __tablename__ = "swipes"
+    __table_args__ = (
+        UniqueConstraint("user_id", "target_user_id", name="uq_swipe_user_target"),
+    )
     
     id: Mapped[uuid.UUID] = mapped_column(
         Uuid(as_uuid=True),
@@ -39,11 +42,13 @@ class Swipe(Base):
         Uuid(as_uuid=True),
         ForeignKey("users.id", ondelete=_user_fk_ondelete()),
         nullable=False,
+        index=True,
     )
     target_user_id: Mapped[uuid.UUID] = mapped_column(
         Uuid(as_uuid=True),
         ForeignKey("users.id", ondelete=_user_fk_ondelete()),
         nullable=False,
+        index=True,
     )
     direction: Mapped[SwipeDirection] = mapped_column(
         Enum(SwipeDirection),

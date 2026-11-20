@@ -1,96 +1,64 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
 import { motion } from 'framer-motion';
-import { useSession } from 'next-auth/react';
+import { Navbar } from '@/components/Navbar';
+import { ChatBot } from '@/components/ChatBot';
+import { useCurrentUser } from '@/lib/user-context';
 import styles from './page.module.css';
 
-const ADMIN_EMAIL = 'karel.goense@freshminds.nl';
-
-import { ChatBot } from '@/components/ChatBot';
-
 export default function Home() {
-    const { data: session } = useSession();
-    const [isAdmin, setIsAdmin] = useState(false);
+    const { hasSkills, loading } = useCurrentUser();
     const [isChatOpen, setIsChatOpen] = useState(false);
-
-    useEffect(() => {
-        // Check both session email and localStorage email
-        const localEmail = localStorage.getItem('freshswipe_user_email');
-        const sessionEmail = session?.user?.email;
-        const userEmail = sessionEmail || localEmail;
-        setIsAdmin(userEmail === ADMIN_EMAIL);
-    }, [session]);
 
     return (
         <div className="page">
-            <header className="page-header">
-                <div className="container">
-                    <nav className="nav">
-                        <div className="nav-brand">
-                            <Image src="/logo.png" alt="FreshSwipe Logo" width={32} height={32} className="mr-2" />
-                            <span>FreshSwipe</span>
-                        </div>
-                        <div className="nav-links">
-                            <Link href="/swipe" className="nav-link">Swipe</Link>
-                            <Link href="/coffee-dates" className="nav-link">☕ Coffee</Link>
-                            <Link href="/matches" className="nav-link">Matches</Link>
-                            <Link href="/profile" className="nav-link">Profile</Link>
-                            <Link href="/insights" className="nav-link">Insights</Link>
-                            <Link href="/feedback" className="nav-link">Feedback</Link>
-                            {isAdmin && (
-                                <Link href="/admin" className="nav-link" style={{ color: '#f59e0b' }}>
-                                    ⚙️ Admin
-                                </Link>
-                            )}
-                        </div>
-                    </nav>
-                </div>
-            </header>
+            <Navbar />
 
             <main className="page-content">
                 <div className="container container-md text-center">
                     <motion.div
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.6 }}
+                        transition={{ duration: 0.5 }}
                     >
                         <h1 className={styles.heroTitle}>
-                            Discover Your
-                            <span className={styles.gradient}> Professional Interests</span>
+                            Connect with Colleagues &amp;
+                            <span className={styles.gradient}> Grow Your Skills</span>
                         </h1>
                         <p className={styles.heroSubtitle}>
-                            Swipe through skills and domains to express your interests,
-                            growth ambitions, and active engagement areas.
+                            Share your expertise and learning goals, swipe to connect with
+                            FreshMinds colleagues, and turn shared ambitions into coffee chats.
                         </p>
                     </motion.div>
 
                     <motion.div
                         className={styles.heroCards}
-                        initial={{ opacity: 0, scale: 0.9 }}
+                        initial={{ opacity: 0, scale: 0.94 }}
                         animate={{ opacity: 1, scale: 1 }}
-                        transition={{ duration: 0.6, delay: 0.2 }}
+                        transition={{ duration: 0.5, delay: 0.15 }}
                     >
                         <div className={styles.cardStackWrapper}>
                             <div className={styles.cardStack}>
-                                <div className={`${styles.demoCard} ${styles.card3}`}>
+                                <div className={`${styles.demoCard} ${styles.card3}`} aria-hidden="true">
                                     <span className={styles.cardIcon}>🔒</span>
                                 </div>
-                                <div className={`${styles.demoCard} ${styles.card2}`}>
+                                <div className={`${styles.demoCard} ${styles.card2}`} aria-hidden="true">
                                     <span className={styles.cardIcon}>☁️</span>
                                 </div>
-                                <motion.div
+                                <motion.button
+                                    type="button"
                                     className={`${styles.demoCard} ${styles.card1} ${styles.clickableCard}`}
-                                    onClick={() => setIsChatOpen(!isChatOpen)}
-                                    whileHover={{ scale: 1.05 }}
+                                    onClick={() => setIsChatOpen((prev) => !prev)}
+                                    whileHover={{ scale: 1.04 }}
                                     whileTap={{ scale: 0.98 }}
-                                    title="Click to chat with FreshBot!"
+                                    aria-expanded={isChatOpen}
                                 >
-                                    <span className={styles.cardIcon}>🤖</span>
-                                    <span className={styles.chatHint}>Click to chat!</span>
-                                </motion.div>
+                                    <span className={styles.cardIcon} aria-hidden="true">🤖</span>
+                                    <span className={styles.cardTitle}>FreshBot</span>
+                                    <span className={styles.chatHint}>Click to ask about colleagues</span>
+                                </motion.button>
                             </div>
                             <ChatBot isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} />
                         </div>
@@ -100,34 +68,46 @@ export default function Home() {
                         className={styles.heroCta}
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
-                        transition={{ duration: 0.6, delay: 0.4 }}
+                        transition={{ duration: 0.5, delay: 0.3 }}
                     >
-                        <Link href="/onboarding" className="btn btn-primary btn-lg">
-                            Get Started
-                            <span>→</span>
-                        </Link>
+                        {!loading && hasSkills ? (
+                            <div className={styles.ctaGroup}>
+                                <Link href="/swipe" className="btn btn-primary btn-lg">
+                                    Start Swiping
+                                    <span aria-hidden="true">→</span>
+                                </Link>
+                                <Link href="/profile" className="btn btn-secondary btn-lg">
+                                    Update My Skills
+                                </Link>
+                            </div>
+                        ) : (
+                            <Link href="/onboarding" className="btn btn-primary btn-lg">
+                                Get Started
+                                <span aria-hidden="true">→</span>
+                            </Link>
+                        )}
                     </motion.div>
 
                     <motion.div
                         className={styles.features}
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.6, delay: 0.6 }}
+                        transition={{ duration: 0.5, delay: 0.45 }}
                     >
                         <Link href="/swipe" className={styles.feature}>
-                            <div className={styles.featureIcon}>👆</div>
-                            <h3>Swipe to Express</h3>
-                            <p>Right for interested, left for not relevant, up for super-like</p>
+                            <div className={styles.featureIcon} aria-hidden="true">👆</div>
+                            <h3>Swipe to Connect</h3>
+                            <p>Browse colleagues&apos; skills — right to connect, up to super-like, left to pass</p>
                         </Link>
-                        <Link href="/insights" className={styles.feature}>
-                            <div className={styles.featureIcon}>📊</div>
-                            <h3>View Insights</h3>
-                            <p>See your top interests and growth areas at a glance</p>
+                        <Link href="/coffee-dates" className={styles.feature}>
+                            <div className={styles.featureIcon} aria-hidden="true">☕</div>
+                            <h3>Coffee Dates</h3>
+                            <p>Get matched with mentors and peers and schedule a quick coffee chat</p>
                         </Link>
                         <Link href="/team-trends" className={styles.feature}>
-                            <div className={styles.featureIcon}>🏢</div>
+                            <div className={styles.featureIcon} aria-hidden="true">🏢</div>
                             <h3>Team Trends</h3>
-                            <p>Discover what skills are trending across the organization</p>
+                            <p>Discover which skills colleagues want to learn across FreshMinds</p>
                         </Link>
                     </motion.div>
                 </div>
@@ -135,7 +115,7 @@ export default function Home() {
 
             <footer className={styles.footer}>
                 <div className="container text-center">
-                    <p className="text-muted">FreshSwipe — Internal Skills Discovery Platform</p>
+                    <p className="text-muted">FreshSwipe — Internal Skills &amp; Colleague Discovery Platform</p>
                 </div>
             </footer>
         </div>

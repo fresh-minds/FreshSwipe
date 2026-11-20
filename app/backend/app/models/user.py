@@ -2,7 +2,7 @@
 import uuid
 from datetime import datetime, timezone
 from typing import Optional
-from sqlalchemy import String, DateTime, ForeignKey, Enum, JSON, Unicode
+from sqlalchemy import String, DateTime, ForeignKey, Enum, JSON, Unicode, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy import Uuid
 import enum
@@ -87,6 +87,9 @@ class UserSkill(Base):
     """Association between users and their skills (current or growth)."""
     
     __tablename__ = "user_skills"
+    __table_args__ = (
+        UniqueConstraint("user_id", "skill_id", "skill_type", name="uq_user_skill_type"),
+    )
     
     id: Mapped[uuid.UUID] = mapped_column(
         Uuid(as_uuid=True),
@@ -97,11 +100,13 @@ class UserSkill(Base):
         Uuid(as_uuid=True),
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
+        index=True,
     )
     skill_id: Mapped[uuid.UUID] = mapped_column(
         Uuid(as_uuid=True),
         ForeignKey("skills.id", ondelete="CASCADE"),
         nullable=False,
+        index=True,
     )
     skill_type: Mapped[SkillType] = mapped_column(
         Enum(SkillType),

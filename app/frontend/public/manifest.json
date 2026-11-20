@@ -1,9 +1,16 @@
 {
     "name": "FreshSwipe",
     "short_name": "FreshSwipe",
-    "description": "Professional skills matching application",
+    "description": "Connect with FreshMinds colleagues, share expertise, and grow your skills",
     "start_url": "/",
     "display": "standalone",
-    "theme_color": "#6366f1",
-    "background_color": "#0f172a"
+    "theme_color": "#2F45C2",
+    "background_color": "#FFFFFF",
+    "icons": [
+        {
+            "src": "/logo.png",
+            "sizes": "192x192",
+            "type": "image/png"
+        }
+    ]
 }

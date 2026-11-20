@@ -15,14 +15,20 @@ export async function syncSessionUser(
     accessToken?: string
 ): Promise<User | null> {
     const email = session?.user?.email;
-    if (!email) return null;
+    if (!email && !accessToken) return null;
 
-    const user = await usersApi.getByEmail(email, accessToken);
+    const user = accessToken
+        ? await usersApi.getMe(accessToken)
+        : email
+            ? await usersApi.getByEmail(email)
+            : null;
+
     if (typeof window !== 'undefined' && user?.id) {
         localStorage.setItem('freshswipe_user_id', user.id);
         localStorage.setItem('freshswipe_user_name', user.name);
-        localStorage.setItem('freshswipe_user_email', user.email);
+        if (user.email) {
+            localStorage.setItem('freshswipe_user_email', user.email);
+        }
     }
     return user;
 }
-

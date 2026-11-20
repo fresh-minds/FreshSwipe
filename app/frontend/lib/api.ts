@@ -16,11 +16,17 @@ export interface Skill {
 
 export interface User {
     id: string;
+    entra_oid?: string | null;
     name: string;
-    email: string;
+    email: string | null;
     unit: string;
-    seniority?: string;
-    availability?: string;
+    seniority?: string | null;
+    availability?: string | null;
+    looking_for?: string[];
+    offering?: string[];
+    is_searchable?: boolean;
+    show_email?: boolean;
+    is_admin?: boolean;
     created_at: string;
     updated_at: string;
 }
@@ -28,13 +34,24 @@ export interface User {
 export interface UserSkill {
     id: string;
     skill_id: string;
-    skill_type: 'CURRENT' | 'GROWTH';
-    skill_name: string;
+    skill_type: 'current' | 'growth' | 'CURRENT' | 'GROWTH';
+    skill_name: string | null;
 }
 
 export interface UserWithSkills extends User {
     current_skills: UserSkill[];
     growth_skills: UserSkill[];
+}
+
+export interface UserUpdatePayload {
+    name?: string;
+    unit?: string;
+    seniority?: string | null;
+    availability?: string | null;
+    is_searchable?: boolean;
+    show_email?: boolean;
+    current_skills?: string[];
+    growth_skills?: string[];
 }
 
 export interface Swipe {
@@ -44,13 +61,28 @@ export interface Swipe {
     direction: 'left' | 'right' | 'super';
     created_at: string;
     target_user_name?: string;
+    is_match?: boolean;
+}
+
+export interface MatchItem {
+    id: string;
+    user_a_id: string;
+    user_b_id: string;
+    user_b_name: string;
+    user_b_email: string | null;
+    score: number;
+    reasons: string[];
+    match_type: 'mutual' | 'mentor' | 'peer' | string;
+    created_at?: string;
 }
 
 export interface UserOnboarding {
     entra_oid?: string;
     name: string;
-    email: string;
+    email?: string;
     unit: string;
+    seniority?: string;
+    availability?: string;
     current_skills: string[];
     growth_skills: string[];
 }
@@ -62,6 +94,7 @@ export interface UserSummary {
         name: string;
         category: string;
         is_super: boolean;
+        mentor_count?: number;
     }>;
     category_distribution: Record<string, number>;
     super_likes: number;
@@ -71,6 +104,8 @@ export interface SkillStats {
     id: string;
     name: string;
     category: string;
+    demand?: number;
+    supply?: number;
     total_swipes: number;
     right_swipes: number;
     super_swipes: number;
@@ -107,16 +142,30 @@ function authHeaders(accessToken?: string): Record<string, string> {
 // Skills API
 export const skillsApi = {
     getAll: () => fetchAPI<Skill[]>('/skills/'),
-    getForUser: (userId: string) => fetchAPI<Skill[]>(`/skills/for-user/${userId}`),
+    getForUser: (userId: string, accessToken?: string) =>
+        fetchAPI<Skill[]>(`/skills/for-user/${userId}`, {
+            headers: authHeaders(accessToken),
+        }),
     getCategories: () => fetchAPI<string[]>('/skills/categories'),
 };
 
 // Users API
 export const usersApi = {
-    create: (data: UserOnboarding) =>
+    getMe: (accessToken?: string) =>
+        fetchAPI<UserWithSkills>('/users/me', {
+            headers: authHeaders(accessToken),
+        }),
+    updateMe: (data: UserUpdatePayload, accessToken?: string) =>
+        fetchAPI<User>('/users/me', {
+            method: 'PATCH',
+            body: JSON.stringify(data),
+            headers: authHeaders(accessToken),
+        }),
+    create: (data: UserOnboarding, accessToken?: string) =>
         fetchAPI<User>('/users/onboard', {
             method: 'POST',
             body: JSON.stringify(data),
+            headers: authHeaders(accessToken),
         }),
     getByEmail: (email: string, accessToken?: string) =>
         fetchAPI<User>(`/users/by-email/${encodeURIComponent(email)}`, {
@@ -126,20 +175,27 @@ export const usersApi = {
         fetchAPI<UserWithSkills>(`/users/${id}`, {
             headers: authHeaders(accessToken),
         }),
-    list: (accessToken?: string) => fetchAPI<User[]>('/users/', {
-        headers: authHeaders(accessToken),
-    }),
-    getCandidates: (accessToken?: string) => fetchAPI<UserWithSkills[]>('/users/candidates', {
-        headers: authHeaders(accessToken),
-    }),
+    list: (accessToken?: string) =>
+        fetchAPI<User[]>('/users/', {
+            headers: authHeaders(accessToken),
+        }),
+    getCandidates: (accessToken?: string, limit = 20) =>
+        fetchAPI<UserWithSkills[]>(`/users/candidates?limit=${limit}`, {
+            headers: authHeaders(accessToken),
+        }),
 };
 
 // Swipes API
 export const swipesApi = {
-    create: (data: { user_id: string; target_user_id: string; direction: string }, accessToken?: string) =>
+    create: (data: { user_id?: string; target_user_id: string; direction: string }, accessToken?: string) =>
         fetchAPI<Swipe>('/swipes/', {
             method: 'POST',
             body: JSON.stringify(data),
+            headers: authHeaders(accessToken),
+        }),
+    undo: (targetUserId: string, accessToken?: string) =>
+        fetchAPI<void>(`/swipes/${targetUserId}`, {
+            method: 'DELETE',
             headers: authHeaders(accessToken),
         }),
     getUserSwipes: (userId: string, accessToken?: string) =>
@@ -157,6 +213,17 @@ export const swipesApi = {
         }),
 };
 
+// Matches API
+export const matchesApi = {
+    list: (matchType?: string, limit = 50, accessToken?: string) => {
+        const params = new URLSearchParams({ limit: String(limit) });
+        if (matchType && matchType !== 'all') params.set('match_type', matchType);
+        return fetchAPI<MatchItem[]>(`/matches/?${params}`, {
+            headers: authHeaders(accessToken),
+        });
+    },
+};
+
 // Analytics API
 export const analyticsApi = {
     getUserSummary: (userId: string, accessToken?: string) =>
@@ -164,7 +231,7 @@ export const analyticsApi = {
             headers: authHeaders(accessToken),
         }),
     getOrgSkillStats: (unit?: string, accessToken?: string) => {
-        const query = unit ? `?unit=${unit}` : '';
+        const query = unit ? `?unit=${encodeURIComponent(unit)}` : '';
         return fetchAPI<SkillStats[]>(`/analytics/organization/skills${query}`, {
             headers: authHeaders(accessToken),
         });
@@ -195,7 +262,7 @@ export interface CoffeeDateSuggestion {
     user_availability: string | null;
     score: number;
     reasons: string[];
-    match_type: 'peer' | 'mentor' | 'mentee';
+    match_type: 'peer' | 'mentor' | 'mentee' | 'mutual';
 }
 
 export interface CoffeeDate {
@@ -212,7 +279,7 @@ export interface CoffeeDate {
     message: string | null;
     match_score: number;
     match_reasons: string[];
-    match_type: 'peer' | 'mentor' | 'mentee' | null;
+    match_type?: 'peer' | 'mentor' | 'mentee' | null;
     created_at: string;
     updated_at: string;
 }
@@ -247,7 +314,7 @@ export interface Feedback {
 export const coffeeDatesApi = {
     getSuggestions: (limit = 10, matchType?: string, accessToken?: string) => {
         const params = new URLSearchParams({ limit: limit.toString() });
-        if (matchType) params.append('match_type', matchType);
+        if (matchType && matchType !== 'all') params.append('match_type', matchType);
         return fetchAPI<CoffeeDateSuggestion[]>(`/coffee-dates/suggestions?${params}`, {
             headers: authHeaders(accessToken),
         });
@@ -259,7 +326,7 @@ export const coffeeDatesApi = {
             headers: authHeaders(accessToken),
         }),
     list: (status?: string, accessToken?: string) => {
-        const params = status ? `?status_filter=${status}` : '';
+        const params = status ? `?status_filter=${encodeURIComponent(status)}` : '';
         return fetchAPI<CoffeeDate[]>(`/coffee-dates/${params}`, {
             headers: authHeaders(accessToken),
         });
